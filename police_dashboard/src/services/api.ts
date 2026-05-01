@@ -16,8 +16,10 @@ import type {
 const TOKEN_KEY = 'aira_access_token';
 const REFRESH_KEY = 'aira_refresh_token';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+
 export const api = axios.create({
-  baseURL: '/api/v1',
+  baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -36,7 +38,7 @@ async function refreshAccessToken(): Promise<string | null> {
   const rt = localStorage.getItem(REFRESH_KEY);
   if (!rt) return null;
   try {
-    const r = await axios.post<AuthResponse>('/api/v1/auth/refresh', { refresh_token: rt });
+    const r = await axios.post<AuthResponse>(`${API_BASE_URL}/auth/refresh`, { refresh_token: rt });
     localStorage.setItem(TOKEN_KEY, r.data.access_token);
     localStorage.setItem(REFRESH_KEY, r.data.refresh_token);
     return r.data.access_token;
