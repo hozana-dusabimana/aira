@@ -4,7 +4,7 @@ class ApiConfig {
   // For a real phone on the same Wi-Fi: use the dev machine's LAN IP.
   static const String baseUrl = String.fromEnvironment(
     'AIRA_API_URL',
-    defaultValue: 'http://10.0.2.2:8000',
+    defaultValue: 'http://192.168.1.64:8000',
   );
 
   static const String apiPrefix = '/api/v1';

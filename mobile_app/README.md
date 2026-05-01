@@ -44,7 +44,7 @@ Add to `ios/Runner/Info.plist`:
 
 ## API base URL
 
-Defaults to `http://10.0.2.2:8000` (Android emulator host alias). Override at run time:
+Defaults to `http://192.168.1.64:8000` (Android emulator host alias). Override at run time:
 
 ```bash
 flutter run --dart-define=AIRA_API_URL=http://192.168.1.42:8000

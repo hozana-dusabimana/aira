@@ -1,12 +1,15 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/api_config.dart';
 import '../models/incident.dart';
 import '../models/notification.dart';
 import '../models/user.dart';
+
+void _log(String msg) => debugPrint('[aira.api] $msg');
 
 class ApiService {
   final Dio _dio;
@@ -16,6 +19,7 @@ class ApiService {
   ApiService._(this._dio);
 
   static Future<ApiService> create() async {
+    _log('init: baseUrl=${ApiConfig.baseUrl}  apiBase=${ApiConfig.apiBase}');
     final dio = Dio(BaseOptions(
       baseUrl: ApiConfig.apiBase,
       connectTimeout: const Duration(seconds: 15),
@@ -29,9 +33,19 @@ class ApiService {
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
         }
+        _log('-> ${options.method} ${options.uri}');
         handler.next(options);
       },
+      onResponse: (res, handler) {
+        _log('<- ${res.statusCode} ${res.requestOptions.uri}');
+        handler.next(res);
+      },
       onError: (e, handler) async {
+        _log(
+          'xx ${e.requestOptions.method} ${e.requestOptions.uri} '
+          'type=${e.type} status=${e.response?.statusCode} '
+          'msg=${e.message} body=${e.response?.data}',
+        );
         if (e.response?.statusCode == 401) {
           final refreshed = await _tryRefresh(dio, prefs);
           if (refreshed) {
@@ -64,10 +78,26 @@ class ApiService {
 
   // ---------- Auth ----------
   Future<Map<String, dynamic>> login(String email, String password) async {
-    final res = await _dio.post('/auth/login',
-        data: {'email': email, 'password': password});
-    await _saveTokens(res.data);
-    return res.data as Map<String, dynamic>;
+    _log('login start email=$email url=${ApiConfig.apiBase}/auth/login');
+    final stopwatch = Stopwatch()..start();
+    try {
+      final res = await _dio.post('/auth/login',
+          data: {'email': email, 'password': password});
+      _log('login ok in ${stopwatch.elapsedMilliseconds}ms');
+      await _saveTokens(res.data);
+      return res.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      _log(
+        'login fail in ${stopwatch.elapsedMilliseconds}ms '
+        'type=${e.type} status=${e.response?.statusCode} '
+        'msg=${e.message} body=${e.response?.data} '
+        'url=${e.requestOptions.uri}',
+      );
+      rethrow;
+    } catch (e, st) {
+      _log('login crash in ${stopwatch.elapsedMilliseconds}ms err=$e\n$st');
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>> register({

@@ -81,7 +81,7 @@ Token lifetimes:
 
 ## Mobile app API base
 
-The Flutter app defaults to `http://10.0.2.2:8000` (Android emulator → host).
+The Flutter app defaults to `http://192.168.1.64:8000` (Android emulator → host).
 
 Override per-build:
 
