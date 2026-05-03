@@ -10,6 +10,7 @@ from app.ai.image_analyzer import get_analyzer
 from app.config import settings
 from app.models.ai_analysis import AIAnalysis
 from app.models.incident import Incident, IncidentStatus, SeverityLevel
+from app.realtime import broadcaster
 
 logger = logging.getLogger(__name__)
 
@@ -70,4 +71,19 @@ def analyze_incident_sync(db: Session, incident_id: int) -> AIAnalysis | None:
     db.add(analysis)
     db.commit()
     db.refresh(analysis)
+
+    event_payload = {
+        "id": incident.id,
+        "status": incident.status.value,
+        "incident_type": incident.incident_type,
+        "severity_level": incident.severity_level.value if incident.severity_level else None,
+        "ai_description": incident.ai_description,
+        "scene_label": result.scene_label,
+        "confidence_score": result.confidence_score,
+        "model_version": result.model_version,
+    }
+    broadcaster.publish(broadcaster.staff_topic(), "incident.analyzed", event_payload)
+    broadcaster.publish(broadcaster.user_topic(incident.reporter_id), "incident.analyzed", event_payload)
+    broadcaster.publish(broadcaster.incident_topic(incident.id), "incident.analyzed", event_payload)
+
     return analysis

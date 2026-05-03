@@ -1,0 +1,11 @@
+# Optional ML dependencies for full vision-language analysis.
+# Install separately when AI_ENABLED=true:  pip install -r requirements-ml.txt
+#
+# These are large (>2 GB combined) and platform-specific, which is why they
+# are not in the main requirements.txt. The backend automatically falls back
+# to the heuristic StubAnalyzer when these are not importable.
+
+torch==2.4.1
+torchvision==0.19.1
+transformers==4.45.1
+ultralytics==8.3.10

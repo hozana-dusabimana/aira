@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { SeverityBadge, StatusBadge } from '../components/incidents/StatusBadge';
 import { incidents as incidentsApi } from '../services/api';
+import { realtime } from '../services/realtime';
 import type { Incident, IncidentMessage, IncidentStatus } from '../types';
 
 const NEXT_STATUSES: IncidentStatus[] = [
@@ -25,6 +26,29 @@ export default function IncidentDetails() {
 
   useEffect(() => {
     if (!isNaN(incidentId)) refresh();
+  }, [incidentId]);
+
+  useEffect(() => {
+    if (isNaN(incidentId)) return;
+    const unsub = realtime.subscribeIncident(incidentId, (evt) => {
+      if (evt.event === 'incident.message') {
+        setMessages((prev) => {
+          const m = evt.data as IncidentMessage;
+          if (prev.some((x) => x.id === m.id)) return prev;
+          return [...prev, m];
+        });
+      } else if (
+        evt.event === 'incident.status_changed' ||
+        evt.event === 'incident.analyzed' ||
+        evt.event === 'incident.assigned' ||
+        evt.event === 'incident.created'
+      ) {
+        setIncident((prev) =>
+          prev ? { ...prev, ...(evt.data as Partial<Incident>) } : prev,
+        );
+      }
+    });
+    return unsub;
   }, [incidentId]);
 
   async function changeStatus(s: IncidentStatus) {

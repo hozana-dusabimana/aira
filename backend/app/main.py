@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -9,10 +10,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.v1 import api_router
+from app.api.v1.ws import router as ws_router
 from app.config import settings
+from app.core.rate_limit import limiter, rate_limit_exception_handler
 from app.database import Base, engine, session_scope
 from app.core.security import hash_password
 from app.models import Officer, Station, User, UserRole
+from app.realtime import broadcaster
+from slowapi.errors import RateLimitExceeded
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO if not settings.DEBUG else logging.DEBUG)
@@ -89,6 +94,9 @@ async def lifespan(_: FastAPI):
             _auto_seed()
         except Exception:
             logger.exception("Auto-seed failed (continuing)")
+    # Bind the running event loop so background threads (Celery, sync request
+    # handlers calling broadcaster.publish) can dispatch WebSocket events.
+    broadcaster.bind_loop(asyncio.get_running_loop())
     yield
 
 
@@ -98,6 +106,9 @@ app = FastAPI(
     description="AI Incident Reporting Application — Rwanda National Police",
     lifespan=lifespan,
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exception_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -113,6 +124,7 @@ upload_path.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(upload_path)), name="uploads")
 
 app.include_router(api_router, prefix=settings.API_PREFIX)
+app.include_router(ws_router, prefix="/ws", tags=["realtime"])
 
 
 @app.get("/health")

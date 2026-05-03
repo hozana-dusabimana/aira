@@ -11,6 +11,8 @@ os.environ["JWT_SECRET"] = "test-secret-key-please-change-in-prod"
 os.environ["AI_ENABLED"] = "false"
 os.environ["AUTO_SEED"] = "false"
 os.environ["UPLOAD_DIR"] = TMP_UPLOAD_DIR
+os.environ["RATE_LIMIT_ENABLED"] = "false"
+os.environ["EMAIL_ENABLED"] = "false"
 
 import pytest
 from fastapi.testclient import TestClient

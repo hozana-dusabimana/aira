@@ -12,8 +12,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY requirements.txt requirements-ml.txt ./
 RUN pip install -r requirements.txt
+# Build with --build-arg INSTALL_ML=1 to bake in the ML stack.
+ARG INSTALL_ML=0
+RUN if [ "$INSTALL_ML" = "1" ]; then pip install -r requirements-ml.txt; fi
 
 COPY . .
 

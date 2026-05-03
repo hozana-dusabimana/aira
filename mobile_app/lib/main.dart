@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -7,10 +9,15 @@ import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'services/api_service.dart';
+import 'services/push_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final api = await ApiService.create();
+  // Push notifications are best-effort; never block app start on them.
+  unawaited(PushService.init(api: api).catchError((Object e) {
+    debugPrint('[aira] push init failed: $e');
+  }));
   runApp(AiraApp(api: api));
 }
 

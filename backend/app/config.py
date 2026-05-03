@@ -33,6 +33,27 @@ class Settings(BaseSettings):
     AI_ENABLED: bool = False
     AUTO_SEED: bool = True
 
+    # --- Rate limiting -------------------------------------------------
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_USE_REDIS: bool = False
+    RL_LOGIN: str = "10/minute"
+    RL_REGISTER: str = "5/minute"
+    RL_PASSWORD_RESET: str = "5/minute"
+    RL_INCIDENT_SUBMIT: str = "20/minute"
+
+    # --- Email (password reset codes, verification) -------------------
+    EMAIL_ENABLED: bool = False
+    SMTP_HOST: str = "localhost"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_USE_TLS: bool = True
+    SMTP_FROM: str = "AIRA <no-reply@aira.local>"
+    SMTP_TIMEOUT: int = 10
+
+    # --- Push (FCM) ---------------------------------------------------
+    FCM_SERVER_KEY: str = ""
+
     @property
     def cors_origins_list(self) -> List[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]

@@ -137,7 +137,11 @@ class MLAnalyzer:
         )
 
     def analyze(self, image_bytes: bytes) -> AnalysisResult:
-        self._load()
+        try:
+            self._load()
+        except ImportError as exc:
+            logger.warning("ML deps unavailable at analyze time, using stub: %s", exc)
+            return StubAnalyzer().analyze(image_bytes)
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
         # Object detection
@@ -173,8 +177,14 @@ class MLAnalyzer:
 def get_analyzer():
     if not settings.AI_ENABLED:
         return StubAnalyzer()
+    # Probe imports up-front so we can pick the stub if the ML stack is missing.
     try:
-        return MLAnalyzer()
+        import ultralytics  # noqa: F401
+        import transformers  # noqa: F401
     except ImportError as exc:
-        logger.warning("ML deps unavailable, falling back to StubAnalyzer: %s", exc)
+        logger.warning(
+            "AI_ENABLED=true but ML deps not installed (%s); using StubAnalyzer. "
+            "Run: pip install -r requirements-ml.txt", exc,
+        )
         return StubAnalyzer()
+    return MLAnalyzer()

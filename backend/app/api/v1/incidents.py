@@ -1,10 +1,8 @@
-from __future__ import annotations
-
 from datetime import datetime, timezone
 from math import asin, cos, radians, sin, sqrt
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -25,11 +23,34 @@ from app.schemas.incident import (
     IncidentOut,
     IncidentStatusUpdate,
 )
+from app.core.rate_limit import INCIDENT_SUBMIT_LIMIT, limiter
+from app.realtime import broadcaster
 from app.services.ai_service import analyze_incident_sync
 from app.services.file_service import save_upload
 from app.services.notification_service import create_notification
 
 router = APIRouter()
+
+
+def _incident_event(incident: Incident, event: str) -> None:
+    payload = {
+        "id": incident.id,
+        "status": incident.status.value if incident.status else None,
+        "incident_type": incident.incident_type,
+        "severity_level": incident.severity_level.value if incident.severity_level else None,
+        "ai_description": incident.ai_description,
+        "user_description": incident.user_description,
+        "image_url": incident.image_url,
+        "latitude": float(incident.latitude) if incident.latitude is not None else None,
+        "longitude": float(incident.longitude) if incident.longitude is not None else None,
+        "reporter_id": incident.reporter_id,
+        "assigned_officer_id": incident.assigned_officer_id,
+        "created_at": incident.created_at.isoformat() if incident.created_at else None,
+        "updated_at": incident.updated_at.isoformat() if incident.updated_at else None,
+    }
+    broadcaster.publish(broadcaster.staff_topic(), event, payload)
+    broadcaster.publish(broadcaster.user_topic(incident.reporter_id), event, payload)
+    broadcaster.publish(broadcaster.incident_topic(incident.id), event, payload)
 
 
 # --- Helpers ----------------------------------------------------------
@@ -51,7 +72,9 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 # --- Endpoints --------------------------------------------------------
 
 @router.post("/", response_model=IncidentDetail, status_code=status.HTTP_201_CREATED)
+@limiter.limit(INCIDENT_SUBMIT_LIMIT)
 def submit_incident(
+    request: Request,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
     image: UploadFile = File(...),
@@ -110,6 +133,7 @@ def submit_incident(
         .options(selectinload(Incident.images), selectinload(Incident.ai_analysis))
         .where(Incident.id == incident.id)
     )
+    _incident_event(incident, "incident.created")
     return incident
 
 
@@ -217,6 +241,7 @@ def update_status(
         type="status_update",
         related_incident_id=incident.id,
     )
+    _incident_event(incident, "incident.status_changed")
     return incident
 
 
@@ -250,6 +275,7 @@ def assign_incident(
         type="incident_assigned",
         related_incident_id=incident.id,
     )
+    _incident_event(incident, "incident.assigned")
     return incident
 
 
@@ -305,6 +331,19 @@ def post_message(
             type="message",
             related_incident_id=incident.id,
         )
+
+    broadcaster.publish(
+        broadcaster.incident_topic(incident.id),
+        "incident.message",
+        {
+            "id": msg.id,
+            "incident_id": incident.id,
+            "sender_id": msg.sender_id,
+            "sender_role": msg.sender_role.value if hasattr(msg.sender_role, "value") else msg.sender_role,
+            "message": msg.message,
+            "created_at": msg.created_at.isoformat() if msg.created_at else None,
+        },
+    )
     return msg
 
 

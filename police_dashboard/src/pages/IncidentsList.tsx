@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SeverityBadge, StatusBadge } from '../components/incidents/StatusBadge';
 import { incidents as incidentsApi } from '../services/api';
+import { realtime } from '../services/realtime';
 import type { Incident, IncidentStatus } from '../types';
 
 const STATUSES: (IncidentStatus | '')[] = [
@@ -13,6 +14,7 @@ export default function IncidentsList() {
   const [list, setList] = useState<Incident[]>([]);
   const [statusFilter, setStatusFilter] = useState<IncidentStatus | ''>('');
   const [loading, setLoading] = useState(false);
+  const [liveBadge, setLiveBadge] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -29,6 +31,32 @@ export default function IncidentsList() {
 
   useEffect(() => {
     load();
+  }, [statusFilter]);
+
+  useEffect(() => {
+    const unsub = realtime.subscribeStaff((evt) => {
+      const data = evt.data as Partial<Incident> & { id: number };
+      setList((prev) => {
+        if (evt.event === 'incident.created') {
+          if (statusFilter && data.status && data.status !== statusFilter) return prev;
+          if (prev.some((i) => i.id === data.id)) return prev;
+          return [data as Incident, ...prev];
+        }
+        if (
+          evt.event === 'incident.status_changed' ||
+          evt.event === 'incident.analyzed' ||
+          evt.event === 'incident.assigned'
+        ) {
+          return prev.map((i) =>
+            i.id === data.id ? { ...i, ...(data as Partial<Incident>) } : i,
+          );
+        }
+        return prev;
+      });
+      setLiveBadge(`live: ${evt.event} #${data.id}`);
+      window.setTimeout(() => setLiveBadge(null), 2500);
+    });
+    return unsub;
   }, [statusFilter]);
 
   return (
@@ -48,6 +76,11 @@ export default function IncidentsList() {
           <button className="ghost" onClick={load} disabled={loading}>
             {loading ? 'Loading...' : 'Refresh'}
           </button>
+          {liveBadge && (
+            <span style={{ marginLeft: 'auto', color: '#22c55e', fontSize: 12 }}>
+              ● {liveBadge}
+            </span>
+          )}
         </div>
       </div>
 

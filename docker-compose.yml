@@ -25,7 +25,11 @@ services:
       - "6379:6379"
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        # Set INSTALL_ML=1 to bake the ~2 GB vision-language stack into the image.
+        INSTALL_ML: "${INSTALL_ML:-0}"
     restart: unless-stopped
     depends_on:
       mysql:
@@ -40,15 +44,27 @@ services:
       JWT_SECRET: change-me-in-prod-please-32-chars-minimum
       CORS_ORIGINS: "http://192.168.1.64:5173,http://192.168.1.64:8000,http://localhost:5173,http://localhost"
       AUTO_SEED: "true"
-      AI_ENABLED: "false"
+      AI_ENABLED: "${AI_ENABLED:-false}"
       UPLOAD_DIR: /app/uploads
+      RATE_LIMIT_ENABLED: "${RATE_LIMIT_ENABLED:-true}"
+      RATE_LIMIT_USE_REDIS: "true"
+      EMAIL_ENABLED: "${EMAIL_ENABLED:-false}"
+      SMTP_HOST: "${SMTP_HOST:-localhost}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_FROM: "${SMTP_FROM:-AIRA <no-reply@aira.local>}"
+      FCM_SERVER_KEY: "${FCM_SERVER_KEY:-}"
     ports:
       - "8000:8000"
     volumes:
       - backend_uploads:/app/uploads
 
   worker:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        INSTALL_ML: "${INSTALL_ML:-0}"
     restart: unless-stopped
     depends_on:
       - backend
@@ -66,8 +82,9 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       JWT_SECRET: change-me-in-prod-please-32-chars-minimum
-      AI_ENABLED: "false"
+      AI_ENABLED: "${AI_ENABLED:-false}"
       UPLOAD_DIR: /app/uploads
+      FCM_SERVER_KEY: "${FCM_SERVER_KEY:-}"
     volumes:
       - backend_uploads:/app/uploads
 

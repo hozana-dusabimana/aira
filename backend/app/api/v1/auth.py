@@ -1,14 +1,18 @@
-from __future__ import annotations
-
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.core.permissions import get_current_user
+from app.core.rate_limit import (
+    LOGIN_LIMIT,
+    PASSWORD_RESET_LIMIT,
+    REGISTER_LIMIT,
+    limiter,
+)
 from app.core.security import (
     REFRESH_TOKEN_TYPE,
     create_access_token,
@@ -30,6 +34,7 @@ from app.schemas.auth import (
     TokenResponse,
     VerifyEmailRequest,
 )
+from app.services.email_service import send_password_reset_code
 
 router = APIRouter()
 
@@ -45,7 +50,12 @@ def _build_token_response(user: User) -> TokenResponse:
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, db: Annotated[Session, Depends(get_db)]) -> TokenResponse:
+@limiter.limit(REGISTER_LIMIT)
+def register(
+    request: Request,
+    payload: RegisterRequest,
+    db: Annotated[Session, Depends(get_db)],
+) -> TokenResponse:
     if db.query(User).filter(User.email == payload.email).first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
@@ -76,12 +86,22 @@ def _login(db: Session, email: str, password: str, expected_roles: set[UserRole]
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Annotated[Session, Depends(get_db)]) -> TokenResponse:
+@limiter.limit(LOGIN_LIMIT)
+def login(
+    request: Request,
+    payload: LoginRequest,
+    db: Annotated[Session, Depends(get_db)],
+) -> TokenResponse:
     return _login(db, payload.email, payload.password, {UserRole.citizen, UserRole.admin})
 
 
 @router.post("/officer/login", response_model=TokenResponse)
-def officer_login(payload: LoginRequest, db: Annotated[Session, Depends(get_db)]) -> TokenResponse:
+@limiter.limit(LOGIN_LIMIT)
+def officer_login(
+    request: Request,
+    payload: LoginRequest,
+    db: Annotated[Session, Depends(get_db)],
+) -> TokenResponse:
     return _login(db, payload.email, payload.password, {UserRole.officer, UserRole.admin})
 
 
@@ -107,8 +127,11 @@ def logout(_=Depends(get_current_user)) -> MessageResponse:
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
+@limiter.limit(PASSWORD_RESET_LIMIT)
 def forgot_password(
-    payload: ForgotPasswordRequest, db: Annotated[Session, Depends(get_db)]
+    request: Request,
+    payload: ForgotPasswordRequest,
+    db: Annotated[Session, Depends(get_db)],
 ) -> MessageResponse:
     user = db.query(User).filter(User.email == payload.email.lower()).first()
     # Don't leak whether the email exists
@@ -121,7 +144,9 @@ def forgot_password(
         )
         db.add(prc)
         db.commit()
-        # In production: dispatch via email/SMS service
+        # Best-effort dispatch via SMTP. If EMAIL_ENABLED=false the code is
+        # logged at INFO level so devs can still complete the flow.
+        send_password_reset_code(to=user.email, full_name=user.full_name, code=code)
     return MessageResponse(message="If the email is registered, a reset code has been sent.")
 
 
