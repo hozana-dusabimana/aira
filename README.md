@@ -66,7 +66,7 @@ npm run build
 ```bash
 cd mobile_app
 flutter pub get
-flutter run --dart-define=AIRA_API_URL=http://192.168.1.64:8000   # Android emulator
+flutter run --dart-define=AIRA_API_URL=http://192.168.1.67:8000   # Android emulator
 ```
 
 See `mobile_app/README.md` for required Android/iOS permissions.
