@@ -5,10 +5,12 @@ import Analytics from './pages/Analytics';
 import Dashboard from './pages/Dashboard';
 import IncidentDetails from './pages/IncidentDetails';
 import IncidentsList from './pages/IncidentsList';
+import Landing from './pages/Landing';
 import Login from './pages/Login';
 import MapView from './pages/MapView';
 import Officers from './pages/Officers';
 import Settings from './pages/Settings';
+import SystemStatusPage from './pages/SystemStatus';
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -18,8 +20,9 @@ export default function App() {
   if (!user) {
     return (
       <Routes>
+        <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     );
   }
@@ -33,6 +36,7 @@ export default function App() {
         <Route path="/map" element={<MapView />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/officers" element={<Officers />} />
+        <Route path="/status" element={<SystemStatusPage />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

@@ -118,6 +118,45 @@ export const officers = {
 export const notifications = {
   list: () => api.get<Notification[]>('/notifications/').then((r) => r.data),
   markRead: (id: number) => api.put<Notification>(`/notifications/${id}/read`).then((r) => r.data),
+  markAllRead: async () => {
+    const all = await api.get<Notification[]>('/notifications/').then((r) => r.data);
+    const unread = all.filter((n) => !n.is_read);
+    await Promise.all(unread.map((n) => api.put(`/notifications/${n.id}/read`)));
+    return unread.length;
+  },
+};
+
+
+// --- System health -------------------------------------------
+const ROOT_URL = API_BASE_URL.replace(/\/api\/v1\/?$/, '') || '';
+
+export type ComponentStatus = 'ok' | 'degraded' | 'down' | 'unknown';
+
+export interface ComponentHealth {
+  status: ComponentStatus;
+  latency_ms?: number;
+  workers?: number;
+  connections?: number;
+  topics?: number;
+  files?: number;
+  error?: string;
+}
+
+export interface HealthResponse {
+  status: string;
+  app?: string;
+  env?: string;
+  version?: string;
+  uptime_seconds?: number;
+  started_at?: string;
+  checked_at?: string;
+  components?: Record<string, ComponentHealth>;
+}
+
+export const system = {
+  health: () => axios.get<HealthResponse>(`${ROOT_URL}/health`, { timeout: 5000 }).then((r) => r.data),
+  healthDetailed: () =>
+    axios.get<HealthResponse>(`${ROOT_URL}/health`, { params: { detailed: true }, timeout: 8000 }).then((r) => r.data),
 };
 
 // --- Analytics -----------------------------------------------

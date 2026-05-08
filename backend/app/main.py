@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from app.api.v1 import api_router
 from app.api.v1.ws import router as ws_router
@@ -127,9 +130,105 @@ app.include_router(api_router, prefix=settings.API_PREFIX)
 app.include_router(ws_router, prefix="/ws", tags=["realtime"])
 
 
+_STARTED_AT = datetime.now(timezone.utc)
+
+
+def _check_database() -> dict:
+    started = time.perf_counter()
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        latency = round((time.perf_counter() - started) * 1000, 1)
+        return {"status": "ok", "latency_ms": latency}
+    except Exception as exc:  # pragma: no cover - depends on infra
+        return {"status": "down", "error": str(exc)[:200]}
+
+
+def _check_redis() -> dict:
+    started = time.perf_counter()
+    try:
+        import redis  # type: ignore
+
+        client = redis.from_url(settings.REDIS_URL, socket_connect_timeout=2, socket_timeout=2)
+        ok = client.ping()
+        latency = round((time.perf_counter() - started) * 1000, 1)
+        return {"status": "ok" if ok else "degraded", "latency_ms": latency}
+    except ModuleNotFoundError:
+        return {"status": "unknown", "error": "redis client not installed"}
+    except Exception as exc:
+        return {"status": "down", "error": str(exc)[:200]}
+
+
+def _check_celery() -> dict:
+    try:
+        from app.tasks.celery_app import celery_app  # type: ignore
+
+        started = time.perf_counter()
+        # inspect.ping returns {worker_name: {'ok': 'pong'}} or None on timeout
+        replies = celery_app.control.inspect(timeout=1.0).ping()
+        latency = round((time.perf_counter() - started) * 1000, 1)
+        if not replies:
+            return {"status": "down", "workers": 0, "error": "no workers responded"}
+        return {"status": "ok", "workers": len(replies), "latency_ms": latency}
+    except ModuleNotFoundError:
+        return {"status": "unknown", "error": "celery not installed"}
+    except Exception as exc:
+        return {"status": "down", "error": str(exc)[:200]}
+
+
+def _check_websocket() -> dict:
+    try:
+        connections = sum(len(s) for s in broadcaster._connections.values())  # noqa: SLF001
+        topics = len(broadcaster._connections)  # noqa: SLF001
+        return {"status": "ok", "connections": connections, "topics": topics}
+    except Exception as exc:
+        return {"status": "down", "error": str(exc)[:200]}
+
+
+def _check_storage() -> dict:
+    try:
+        path = Path(settings.UPLOAD_DIR)
+        if not path.exists():
+            return {"status": "down", "error": "upload directory missing"}
+        # Light count of upload entries
+        files = sum(1 for _ in path.glob("**/*") if _.is_file())
+        return {"status": "ok", "files": files}
+    except Exception as exc:
+        return {"status": "degraded", "error": str(exc)[:200]}
+
+
 @app.get("/health")
-def health() -> dict:
-    return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV}
+def health(detailed: bool = False) -> dict:
+    """Lightweight by default; pass ?detailed=true for component status."""
+    if not detailed:
+        return {"status": "ok", "app": settings.APP_NAME, "env": settings.APP_ENV}
+
+    components = {
+        "database": _check_database(),
+        "redis": _check_redis(),
+        "celery": _check_celery(),
+        "websocket": _check_websocket(),
+        "storage": _check_storage(),
+    }
+    statuses = {c["status"] for c in components.values()}
+    if "down" in statuses:
+        overall = "degraded"
+    elif "degraded" in statuses:
+        overall = "degraded"
+    else:
+        overall = "ok"
+
+    uptime = (datetime.now(timezone.utc) - _STARTED_AT).total_seconds()
+    return {
+        "status": overall,
+        "app": settings.APP_NAME,
+        "env": settings.APP_ENV,
+        "version": "1.0.0",
+        "uptime_seconds": int(uptime),
+        "started_at": _STARTED_AT.isoformat(),
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "components": components,
+    }
 
 
 @app.get("/")

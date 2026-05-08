@@ -31,15 +31,31 @@ export interface RealtimeEvent<T = unknown> {
 
 type Listener = (e: RealtimeEvent) => void;
 
+type StateListener = (state: 'connecting' | 'open' | 'closed') => void;
+
 interface Stream {
   url: () => string;
   ws: WebSocket | null;
   listeners: Set<Listener>;
+  stateListeners: Set<StateListener>;
+  state: 'connecting' | 'open' | 'closed';
   retry: number;
   closed: boolean;
 }
 
 const streams: Record<string, Stream> = {};
+
+function setState(stream: Stream, state: 'connecting' | 'open' | 'closed') {
+  if (stream.state === state) return;
+  stream.state = state;
+  stream.stateListeners.forEach((l) => {
+    try {
+      l(state);
+    } catch (err) {
+      console.error('realtime state listener threw', err);
+    }
+  });
+}
 
 function buildUrl(path: string): string {
   const token = localStorage.getItem(TOKEN_KEY) ?? '';
@@ -52,6 +68,8 @@ function ensureStream(key: string, path: string): Stream {
     url: () => buildUrl(path),
     ws: null,
     listeners: new Set(),
+    stateListeners: new Set(),
+    state: 'closed',
     retry: 0,
     closed: false,
   };
@@ -64,12 +82,14 @@ function connect(key: string) {
   const stream = streams[key];
   if (!stream || stream.closed) return;
 
+  setState(stream, 'connecting');
   try {
     const ws = new WebSocket(stream.url());
     stream.ws = ws;
 
     ws.onopen = () => {
       stream.retry = 0;
+      setState(stream, 'open');
     };
     ws.onmessage = (ev) => {
       try {
@@ -87,6 +107,7 @@ function connect(key: string) {
     };
     ws.onclose = () => {
       stream.ws = null;
+      setState(stream, 'closed');
       if (stream.closed) return;
       const delay = Math.min(30_000, 500 * 2 ** stream.retry);
       stream.retry = Math.min(stream.retry + 1, 6);
@@ -97,6 +118,7 @@ function connect(key: string) {
     };
   } catch (err) {
     console.error('WS connect failed', err);
+    setState(stream, 'closed');
   }
 }
 
@@ -105,6 +127,18 @@ export const realtime = {
     const stream = ensureStream('staff', '/staff');
     stream.listeners.add(listener);
     return () => stream.listeners.delete(listener);
+  },
+
+  subscribeStaffState(listener: StateListener): () => void {
+    const stream = ensureStream('staff', '/staff');
+    stream.stateListeners.add(listener);
+    // Notify immediately with current state
+    try {
+      listener(stream.state);
+    } catch (err) {
+      console.error('realtime state listener threw', err);
+    }
+    return () => stream.stateListeners.delete(listener);
   },
 
   subscribeIncident(incidentId: number, listener: Listener): () => void {
