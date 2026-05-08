@@ -49,6 +49,9 @@ def analyze_incident_sync(db: Session, incident_id: int) -> AIAnalysis | None:
     analyzer = get_analyzer()
     result = analyzer.analyze(img_bytes)
 
+    # AI summary is generated purely from the image; the citizen's own
+    # description is intentionally excluded so the AI report stands as an
+    # objective second opinion on the scene.
     description = generate_description(result)
     incident.ai_description = description
     if not incident.incident_type:

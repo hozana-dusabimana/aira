@@ -51,6 +51,11 @@ button.ghost {
   color: var(--text);
 }
 button.danger { background: var(--red); }
+button.danger:hover { background: #dc2626; }
+button.success { background: var(--green); }
+button.success:hover { background: #059669; }
+button.warning { background: var(--orange); }
+button.warning:hover { background: #ea580c; }
 
 input, select, textarea {
   background: var(--panel-2);
@@ -776,6 +781,168 @@ input:focus, select:focus, textarea:focus {
 .quick-icon.yellow { background: rgba(245, 158, 11, 0.15); }
 .quick-icon.green { background: rgba(16, 185, 129, 0.15); }
 .quick-icon.purple { background: rgba(139, 92, 246, 0.15); }
+
+/* ===================== CONFIRM DIALOG ===================== */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  animation: fade-in 0.15s ease-out;
+}
+
+.confirm-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: var(--shadow-lg);
+  animation: pop-in 0.18s ease-out;
+}
+
+.confirm-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 14px;
+}
+.confirm-icon-primary { background: var(--accent); }
+.confirm-icon-success { background: var(--green); }
+.confirm-icon-warning { background: var(--orange); }
+.confirm-icon-danger { background: var(--red); }
+
+.confirm-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.confirm-message {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+.confirm-message p { margin: 0 0 8px; }
+
+.confirm-note {
+  background: var(--panel-2);
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.confirm-note-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.confirm-note-text {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.confirm-note-empty {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ===================== INCIDENT LOCATION CARD ===================== */
+.loc-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.loc-card-empty { padding: 14px; }
+.loc-card-head,
+.loc-card-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.loc-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.15);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.loc-card-head strong,
+.loc-card-row strong { display: block; font-size: 13px; color: var(--text); }
+.loc-card-head span,
+.loc-card-row span { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.loc-mini-map {
+  height: 200px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border-2);
+}
+
+.loc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.loc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+.loc-btn:hover { background: var(--panel); border-color: var(--accent); color: white; }
+.loc-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+.loc-btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: white; }
 
 /* ===================== SYSTEM STATUS PAGE ===================== */
 .status-page { display: flex; flex-direction: column; gap: 18px; }

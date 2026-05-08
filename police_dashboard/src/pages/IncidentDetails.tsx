@@ -1,9 +1,59 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import ConfirmDialog, { type ConfirmTone } from '../components/common/ConfirmDialog';
+import IncidentLocationCard from '../components/incidents/IncidentLocationCard';
 import { SeverityBadge, StatusBadge } from '../components/incidents/StatusBadge';
 import { incidents as incidentsApi } from '../services/api';
 import { realtime } from '../services/realtime';
 import type { Incident, IncidentMessage, IncidentStatus } from '../types';
+
+const STATUS_CONFIRM: Record<
+  IncidentStatus,
+  { tone: ConfirmTone; label: string; verb: string; description: string }
+> = {
+  pending: {
+    tone: 'primary',
+    label: 'Mark as pending',
+    verb: 'reset to pending',
+    description: 'The incident will return to the pending queue and become unassigned.',
+  },
+  analyzing: {
+    tone: 'primary',
+    label: 'Mark as analyzing',
+    verb: 'mark as analyzing',
+    description: 'The incident will be flagged as currently being analyzed.',
+  },
+  verified: {
+    tone: 'primary',
+    label: 'Verify incident',
+    verb: 'mark as verified',
+    description: 'The incident details have been reviewed and confirmed as a real report.',
+  },
+  assigned: {
+    tone: 'primary',
+    label: 'Assign incident',
+    verb: 'mark as assigned',
+    description: 'An officer has been assigned to handle this incident.',
+  },
+  in_progress: {
+    tone: 'warning',
+    label: 'Set in progress',
+    verb: 'set to in progress',
+    description: 'Officers are now actively responding to this incident.',
+  },
+  resolved: {
+    tone: 'success',
+    label: 'Resolve incident',
+    verb: 'resolve',
+    description: 'The case will be closed and the citizen will be notified that the incident is resolved.',
+  },
+  rejected: {
+    tone: 'danger',
+    label: 'Reject incident',
+    verb: 'reject',
+    description: 'The report will be marked as rejected. The citizen will see this and may be notified.',
+  },
+};
 
 const NEXT_STATUSES: IncidentStatus[] = [
   'verified', 'assigned', 'in_progress', 'resolved', 'rejected',
@@ -16,17 +66,19 @@ export default function IncidentDetails() {
   const [messages, setMessages] = useState<IncidentMessage[]>([]);
   const [reply, setReply] = useState('');
   const [note, setNote] = useState('');
+  const [pendingStatus, setPendingStatus] = useState<IncidentStatus | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const data = await incidentsApi.get(incidentId);
     setIncident(data);
     const msgs = await incidentsApi.messages(incidentId);
     setMessages(msgs);
-  }
+  }, [incidentId]);
 
   useEffect(() => {
     if (!isNaN(incidentId)) refresh();
-  }, [incidentId]);
+  }, [incidentId, refresh]);
 
   useEffect(() => {
     if (isNaN(incidentId)) return;
@@ -57,6 +109,20 @@ export default function IncidentDetails() {
     refresh();
   }
 
+  async function confirmStatusChange() {
+    if (!pendingStatus) return;
+    setConfirmBusy(true);
+    try {
+      await changeStatus(pendingStatus);
+      setPendingStatus(null);
+    } catch (err) {
+      console.error('Failed to update status', err);
+      // keep the dialog open so the user knows it failed; they can cancel/retry
+    } finally {
+      setConfirmBusy(false);
+    }
+  }
+
   async function sendMessage() {
     if (!reply.trim()) return;
     await incidentsApi.postMessage(incidentId, reply.trim());
@@ -65,6 +131,8 @@ export default function IncidentDetails() {
   }
 
   if (!incident) return <div>Loading…</div>;
+
+  const pendingMeta = pendingStatus ? STATUS_CONFIRM[pendingStatus] : null;
 
   return (
     <div>
@@ -117,14 +185,6 @@ export default function IncidentDetails() {
               <tr><th>Status</th><td><StatusBadge status={incident.status} /></td></tr>
               <tr><th>Severity</th><td><SeverityBadge severity={incident.severity_level} /></td></tr>
               <tr><th>Reporter</th><td>#{incident.reporter_id}</td></tr>
-              <tr>
-                <th>Location</th>
-                <td>
-                  {incident.latitude && incident.longitude
-                    ? `${Number(incident.latitude).toFixed(5)}, ${Number(incident.longitude).toFixed(5)}`
-                    : '—'}
-                </td>
-              </tr>
               <tr><th>Created</th><td>{new Date(incident.created_at).toLocaleString()}</td></tr>
               <tr><th>Updated</th><td>{new Date(incident.updated_at).toLocaleString()}</td></tr>
               {incident.resolved_at && (
@@ -133,8 +193,20 @@ export default function IncidentDetails() {
             </tbody>
           </table>
 
-          <h4 style={{ marginTop: 24 }}>Update status</h4>
+          <div style={{ marginTop: 16 }}>
+            <IncidentLocationCard
+              latitude={incident.latitude}
+              longitude={incident.longitude}
+              severity={incident.severity_level}
+              incidentId={incident.id}
+            />
+          </div>
+
+          <h4 style={{ marginTop: 24 }}>
+            <label htmlFor="status-note">Update status</label>
+          </h4>
           <textarea
+            id="status-note"
             placeholder="Optional note for the citizen…"
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -145,7 +217,7 @@ export default function IncidentDetails() {
               <button
                 key={s}
                 className={s === 'rejected' ? 'danger' : s === 'resolved' ? '' : 'ghost'}
-                onClick={() => changeStatus(s)}
+                onClick={() => setPendingStatus(s)}
               >
                 {s.replace('_', ' ')}
               </button>
@@ -177,6 +249,40 @@ export default function IncidentDetails() {
           </div>
         </div>
       </div>
+
+      {pendingMeta && (
+        <ConfirmDialog
+          open
+          title={pendingMeta.label}
+          tone={pendingMeta.tone}
+          confirmLabel={pendingMeta.label}
+          cancelLabel="Cancel"
+          busy={confirmBusy}
+          onCancel={() => !confirmBusy && setPendingStatus(null)}
+          onConfirm={confirmStatusChange}
+          message={
+            <div>
+              <p style={{ margin: '0 0 10px' }}>
+                You're about to <strong>{pendingMeta.verb}</strong> incident{' '}
+                <strong>#{incident.id}</strong>.
+              </p>
+              <p style={{ margin: '0 0 12px', color: 'var(--muted)', fontSize: 13 }}>
+                {pendingMeta.description}
+              </p>
+              {note.trim() ? (
+                <div className="confirm-note">
+                  <div className="confirm-note-label">Note for the citizen</div>
+                  <div className="confirm-note-text">{note}</div>
+                </div>
+              ) : (
+                <div className="confirm-note confirm-note-empty">
+                  No note will be sent. You can cancel and add one in the field above.
+                </div>
+              )}
+            </div>
+          }
+        />
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import 'screens/auth/register_screen.dart';
 import 'screens/home/home_screen.dart';
 import 'services/api_service.dart';
 import 'services/push_service.dart';
+import 'widgets/loaders.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +36,7 @@ class AiraApp extends StatelessWidget {
           theme: buildAppTheme(),
           debugShowCheckedModeBanner: false,
           home: auth.loading
-              ? const _Splash()
+              ? const AiraSplashLoader(message: 'Securing your session...')
               : auth.isLoggedIn
                   ? HomeScreen(api: api)
                   : LoginScreen(api: api),
@@ -50,13 +51,3 @@ class AiraApp extends StatelessWidget {
   }
 }
 
-class _Splash extends StatelessWidget {
-  const _Splash();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
-  }
-}
