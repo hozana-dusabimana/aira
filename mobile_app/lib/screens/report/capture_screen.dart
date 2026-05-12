@@ -205,24 +205,13 @@ class _CaptureScreenState extends State<CaptureScreen> {
   }
 
   Widget _buildPickerButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: ElevatedButton.icon(
-            icon: const Icon(Icons.camera_alt_outlined),
-            label: const Text('Camera'),
-            onPressed: () => _pick(ImageSource.camera),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: OutlinedButton.icon(
-            icon: const Icon(Icons.photo_library_outlined),
-            label: const Text('Gallery'),
-            onPressed: () => _pick(ImageSource.gallery),
-          ),
-        ),
-      ],
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        icon: const Icon(Icons.camera_alt_outlined),
+        label: const Text('Camera'),
+        onPressed: () => _pick(ImageSource.camera),
+      ),
     );
   }
 

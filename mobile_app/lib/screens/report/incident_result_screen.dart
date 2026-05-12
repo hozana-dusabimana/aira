@@ -2,19 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../config/api_config.dart';
 import '../../config/theme.dart';
 import '../../models/incident.dart';
-import '../../widgets/loaders.dart';
 import '../../widgets/status_chips.dart';
 
 class IncidentResultScreen extends StatelessWidget {
   final Incident incident;
   const IncidentResultScreen({super.key, required this.incident});
-
-  String? get _imageFullUrl => incident.imageUrl != null
-      ? '${ApiConfig.baseUrl}${incident.imageUrl}'
-      : null;
 
   Future<void> _openInMaps() async {
     final lat = incident.latitude;
@@ -40,8 +34,6 @@ class IncidentResultScreen extends StatelessWidget {
         children: [
           _buildSuccessHeader(),
           const SizedBox(height: 20),
-          _buildHeroImage(context),
-          const SizedBox(height: 16),
           _buildSummaryCard(dateFmt),
           if (incident.aiDescription != null) ...[
             const SizedBox(height: 16),
@@ -111,46 +103,6 @@ class IncidentResultScreen extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildHeroImage(BuildContext context) {
-    if (_imageFullUrl == null) {
-      return Container(
-        height: 200,
-        decoration: BoxDecoration(
-          color: AiraColors.surfaceMuted,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: const Center(
-          child: Icon(Icons.image_not_supported_outlined,
-              size: 40, color: AiraColors.textMuted),
-        ),
-      );
-    }
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
-      child: AspectRatio(
-        aspectRatio: 4 / 3,
-        child: Image.network(
-          _imageFullUrl!,
-          fit: BoxFit.cover,
-          loadingBuilder: (context, child, progress) {
-            if (progress == null) return child;
-            return Container(
-              color: AiraColors.surfaceMuted,
-              alignment: Alignment.center,
-              child: const AiraInlineLoader(label: 'Loading image...'),
-            );
-          },
-          errorBuilder: (_, __, ___) => Container(
-            color: AiraColors.surfaceMuted,
-            alignment: Alignment.center,
-            child: const Icon(Icons.broken_image_outlined,
-                size: 40, color: AiraColors.textMuted),
-          ),
-        ),
       ),
     );
   }
