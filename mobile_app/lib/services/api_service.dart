@@ -23,7 +23,8 @@ class ApiService {
     final dio = Dio(BaseOptions(
       baseUrl: ApiConfig.apiBase,
       connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 30),
+      sendTimeout: const Duration(seconds: 90),
+      receiveTimeout: const Duration(seconds: 90),
     ));
 
     final prefs = await SharedPreferences.getInstance();
