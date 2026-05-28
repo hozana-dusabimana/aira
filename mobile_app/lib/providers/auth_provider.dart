@@ -29,16 +29,17 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> login(String email, String password) async {
-    await api.login(email, password);
+  /// [identifier] may be an email address or a phone number.
+  Future<void> login(String identifier, String password) async {
+    await api.login(identifier, password);
     _user = await api.getMe();
     notifyListeners();
   }
 
   Future<void> register({
     required String fullName,
-    required String email,
     required String password,
+    String? email,
     String? phone,
   }) async {
     await api.register(

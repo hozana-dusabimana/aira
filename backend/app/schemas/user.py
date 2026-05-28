@@ -1,13 +1,13 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.user import UserRole
 
 
 class UserBase(BaseModel):
     full_name: str
-    email: EmailStr
+    email: str | None = None
     phone: str | None = None
     national_id: str | None = None
 

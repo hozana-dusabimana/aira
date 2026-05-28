@@ -17,7 +17,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailCtl = TextEditingController(text: 'citizen@example.com');
+  final _identifierCtl = TextEditingController(text: 'citizen@example.com');
   final _pwdCtl = TextEditingController(text: 'Citizen@1');
   bool _busy = false;
   bool _obscure = true;
@@ -25,7 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _emailCtl.dispose();
+    _identifierCtl.dispose();
     _pwdCtl.dispose();
     super.dispose();
   }
@@ -39,11 +39,11 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await context
           .read<AuthProvider>()
-          .login(_emailCtl.text.trim(), _pwdCtl.text);
+          .login(_identifierCtl.text.trim(), _pwdCtl.text);
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/home');
     } catch (e) {
-      setState(() => _error = 'Sign in failed: $e');
+      setState(() => _error = apiErrorMessage(e, fallback: 'Sign in failed. Check your details and try again.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -90,14 +90,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 28),
                     TextFormField(
-                      controller: _emailCtl,
+                      controller: _identifierCtl,
                       keyboardType: TextInputType.emailAddress,
                       decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.mail_outline),
+                        labelText: 'Email or phone',
+                        prefixIcon: Icon(Icons.person_outline),
                       ),
-                      validator: (v) => v == null || !v.contains('@')
-                          ? 'Enter a valid email'
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Enter your email or phone number'
                           : null,
                     ),
                     const SizedBox(height: 14),

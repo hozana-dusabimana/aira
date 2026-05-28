@@ -20,8 +20,10 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     full_name: Mapped[str] = mapped_column(String(150), nullable=False)
-    email: Mapped[str] = mapped_column(String(190), nullable=False, unique=True, index=True)
-    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # Email is optional: a citizen may register with a phone number instead.
+    email: Mapped[str | None] = mapped_column(String(190), nullable=True, unique=True, index=True)
+    # Phone is unique so it can be used as a login identifier.
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True, unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     national_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
     role: Mapped[UserRole] = mapped_column(

@@ -56,13 +56,18 @@ def register(
     payload: RegisterRequest,
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenResponse:
-    if db.query(User).filter(User.email == payload.email).first():
+    email = payload.email.lower() if payload.email else None
+    phone = payload.phone.strip() if payload.phone else None
+
+    if email and db.query(User).filter(User.email == email).first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+    if phone and db.query(User).filter(User.phone == phone).first():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Phone number already registered")
 
     user = User(
         full_name=payload.full_name.strip(),
-        email=payload.email.lower(),
-        phone=payload.phone,
+        email=email,
+        phone=phone,
         national_id=payload.national_id,
         password_hash=hash_password(payload.password),
         role=UserRole.citizen,
@@ -74,8 +79,20 @@ def register(
     return _build_token_response(user)
 
 
-def _login(db: Session, email: str, password: str, expected_roles: set[UserRole]) -> TokenResponse:
-    user = db.query(User).filter(User.email == email.lower()).first()
+def _find_user_by_identifier(db: Session, identifier: str) -> User | None:
+    """Resolve a login identifier that may be an email or a phone number."""
+    ident = identifier.strip()
+    if "@" in ident:
+        return db.query(User).filter(User.email == ident.lower()).first()
+    # Treat as phone first, then fall back to email (some users type either).
+    user = db.query(User).filter(User.phone == ident).first()
+    if not user:
+        user = db.query(User).filter(User.email == ident.lower()).first()
+    return user
+
+
+def _login(db: Session, identifier: str, password: str, expected_roles: set[UserRole]) -> TokenResponse:
+    user = _find_user_by_identifier(db, identifier)
     if not user or not verify_password(password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if not user.is_active:
@@ -92,7 +109,7 @@ def login(
     payload: LoginRequest,
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenResponse:
-    return _login(db, payload.email, payload.password, {UserRole.citizen, UserRole.admin})
+    return _login(db, payload.identifier, payload.password, {UserRole.citizen, UserRole.admin})
 
 
 @router.post("/officer/login", response_model=TokenResponse)
@@ -102,7 +119,7 @@ def officer_login(
     payload: LoginRequest,
     db: Annotated[Session, Depends(get_db)],
 ) -> TokenResponse:
-    return _login(db, payload.email, payload.password, {UserRole.officer, UserRole.admin})
+    return _login(db, payload.identifier, payload.password, {UserRole.officer, UserRole.admin})
 
 
 @router.post("/refresh", response_model=TokenResponse)

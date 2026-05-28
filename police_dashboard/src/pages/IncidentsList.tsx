@@ -4,6 +4,7 @@ import { SeverityBadge, StatusBadge } from '../components/incidents/StatusBadge'
 import { incidents as incidentsApi } from '../services/api';
 import { realtime } from '../services/realtime';
 import type { Incident, IncidentStatus } from '../types';
+import { incidentTypeLabel } from '../utils/incident';
 
 const STATUSES: (IncidentStatus | '')[] = [
   '', 'pending', 'analyzing', 'verified', 'assigned', 'in_progress', 'resolved', 'rejected',
@@ -96,10 +97,10 @@ export default function IncidentsList() {
             {list.map((i) => (
               <tr key={i.id} onClick={() => navigate(`/incidents/${i.id}`)}>
                 <td>#{i.id}</td>
-                <td>{i.incident_type ?? '—'}</td>
+                <td>{incidentTypeLabel(i.incident_type)}</td>
                 <td><SeverityBadge severity={i.severity_level} /></td>
                 <td><StatusBadge status={i.status} /></td>
-                <td>#{i.reporter_id}</td>
+                <td>{i.reporter?.full_name ?? `#${i.reporter_id}`}</td>
                 <td>
                   {i.latitude && i.longitude
                     ? `${Number(i.latitude).toFixed(4)}, ${Number(i.longitude).toFixed(4)}`

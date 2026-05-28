@@ -43,8 +43,16 @@ def test_notifications_created_on_status_update(
     )
     r = client.get("/api/v1/notifications/", headers=auth_header(citizen_token))
     assert r.status_code == 200
-    titles = [n["title"] for n in r.json()]
-    assert any("status updated" in t.lower() for t in titles)
+    notifs = r.json()
+    # The reporter is notified about the status change on their own incident.
+    status_notifs = [
+        n
+        for n in notifs
+        if n["related_incident_id"] == sub["id"]
+        and n["type"] in ("status_update", "report_approved", "report_resolved", "report_rejected")
+    ]
+    assert status_notifs, notifs
+    assert any("Dispatched" in (n["message"] or "") for n in status_notifs)
 
 
 def test_register_device_token(client, citizen_token, auth_header):

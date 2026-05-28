@@ -24,6 +24,37 @@ def test_register_rejects_duplicate_email(client):
     assert r.status_code == 409
 
 
+def test_register_and_login_with_phone_only(client):
+    reg = client.post(
+        "/api/v1/auth/register",
+        json={"full_name": "Phone User", "phone": "+250788999000", "password": "Strong@1234"},
+    )
+    assert reg.status_code == 201, reg.text
+    # Log in using the phone number as the identifier.
+    r = client.post(
+        "/api/v1/auth/login",
+        json={"identifier": "+250788999000", "password": "Strong@1234"},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["role"] == "citizen"
+
+
+def test_register_requires_email_or_phone(client):
+    r = client.post(
+        "/api/v1/auth/register",
+        json={"full_name": "No Contact", "password": "Strong@1234"},
+    )
+    assert r.status_code == 422
+
+
+def test_login_with_identifier_email(client):
+    r = client.post(
+        "/api/v1/auth/login",
+        json={"identifier": "citizen@aira.example.com", "password": "Citizen@1"},
+    )
+    assert r.status_code == 200
+
+
 def test_login_success(client):
     r = client.post(
         "/api/v1/auth/login",

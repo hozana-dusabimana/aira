@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { CircleMarker, MapContainer, Popup, TileLayer, useMap } from 'react-leaflet';
 import { incidents as incidentsApi } from '../services/api';
 import type { Incident, SeverityLevel } from '../types';
+import { incidentTypeLabel } from '../utils/incident';
 
 // Fix default marker icons in react-leaflet 4 + Vite
 delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl;
@@ -90,7 +91,7 @@ export default function MapView() {
                 }}
               >
                 <Popup>
-                  <strong>#{i.id} — {i.incident_type ?? 'unknown'}</strong>
+                  <strong>#{i.id} — {incidentTypeLabel(i.incident_type)}</strong>
                   <br />Severity: {i.severity_level}
                   <br />Status: {i.status}
                   <br />

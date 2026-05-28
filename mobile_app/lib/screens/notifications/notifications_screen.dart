@@ -30,6 +30,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   IconData _iconFor(String type) {
     final t = type.toLowerCase();
+    if (t.contains('approved')) return Icons.verified_outlined;
+    if (t.contains('reported')) return Icons.report_gmailerrorred_outlined;
     if (t.contains('assigned')) return Icons.local_police;
     if (t.contains('resolved')) return Icons.check_circle_outline;
     if (t.contains('rejected')) return Icons.cancel_outlined;

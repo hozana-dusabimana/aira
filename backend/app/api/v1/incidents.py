@@ -1,11 +1,14 @@
+import logging
 from datetime import datetime, timezone
 from math import asin, cos, radians, sin, sqrt
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.config import settings
 from app.core.permissions import get_current_user, require_admin, require_officer
 from app.database import get_db
 from app.models.feedback_message import FeedbackMessage
@@ -31,8 +34,85 @@ from app.services.notification_service import create_notification
 
 router = APIRouter()
 
+logger = logging.getLogger(__name__)
+
+# Categories that mean "the AI could not recognise a real incident". Uploads
+# that classify into one of these (or have no type at all) are rejected so
+# officers are not disturbed by non-incident photos.
+_NON_INCIDENT_TYPES = {"", "general"}
+
+# Per-status (title, default message, notification type) used when the
+# reporter is notified that an officer acted on their report.
+_STATUS_NOTIFICATION: dict[IncidentStatus, tuple[str, str, str]] = {
+    IncidentStatus.verified: (
+        "Your report was approved",
+        "An officer has reviewed and approved your report. It is now being acted on.",
+        "report_approved",
+    ),
+    IncidentStatus.assigned: (
+        "An officer is on your report",
+        "Your report has been approved and assigned to an officer.",
+        "report_approved",
+    ),
+    IncidentStatus.in_progress: (
+        "Officers are responding",
+        "Officers are now actively responding to your reported incident.",
+        "status_update",
+    ),
+    IncidentStatus.resolved: (
+        "Your report is resolved",
+        "Your reported incident has been resolved. Thank you for reporting.",
+        "report_resolved",
+    ),
+    IncidentStatus.rejected: (
+        "Report could not be confirmed",
+        "After review, your report could not be confirmed as an incident.",
+        "report_rejected",
+    ),
+}
+
+
+def _looks_like_incident(incident: Incident) -> bool:
+    return (incident.incident_type or "").strip().lower() not in _NON_INCIDENT_TYPES
+
+
+def _delete_upload_file(image_url: str | None) -> None:
+    """Best-effort removal of a stored upload (used when a report is rejected)."""
+    if not image_url:
+        return
+    rel = image_url.lstrip("/")
+    try:
+        path = Path(settings.UPLOAD_DIR).resolve().parent / rel
+        if not path.exists():
+            path = Path(settings.UPLOAD_DIR).resolve() / Path(rel).name
+        path.unlink(missing_ok=True)
+    except Exception:  # noqa: BLE001
+        logger.debug("Could not delete rejected upload: %s", image_url)
+
+
+def _notify_officers_new_incident(db: Session, incident: Incident) -> None:
+    """Notify every active officer that a new report has come in."""
+    officer_ids = db.scalars(
+        select(User.id).where(User.role == UserRole.officer, User.is_active.is_(True))
+    ).all()
+    summary = (
+        incident.ai_description
+        or incident.user_description
+        or "A citizen submitted a new incident report."
+    )
+    for uid in officer_ids:
+        create_notification(
+            db,
+            user_id=uid,
+            title=f"New {(incident.incident_type or 'incident').replace('_', ' ')} report submitted",
+            message=summary[:200],
+            type="incident_reported",
+            related_incident_id=incident.id,
+        )
+
 
 def _incident_event(incident: Incident, event: str) -> None:
+    reporter = incident.reporter
     payload = {
         "id": incident.id,
         "status": incident.status.value if incident.status else None,
@@ -44,6 +124,11 @@ def _incident_event(incident: Incident, event: str) -> None:
         "latitude": float(incident.latitude) if incident.latitude is not None else None,
         "longitude": float(incident.longitude) if incident.longitude is not None else None,
         "reporter_id": incident.reporter_id,
+        "reporter": (
+            {"id": reporter.id, "full_name": reporter.full_name, "phone": reporter.phone}
+            if reporter
+            else None
+        ),
         "assigned_officer_id": incident.assigned_officer_id,
         "created_at": incident.created_at.isoformat() if incident.created_at else None,
         "updated_at": incident.updated_at.isoformat() if incident.updated_at else None,
@@ -116,6 +201,20 @@ def submit_incident(
     if run_ai:
         analyze_incident_sync(db, incident.id)
         db.refresh(incident)
+        # Reject photos the AI does not recognise as a reportable incident
+        # (e.g. someone simply sitting in an office) so officers aren't
+        # disturbed by non-incident uploads.
+        if settings.INCIDENT_VALIDATION_ENABLED and not _looks_like_incident(incident):
+            _delete_upload_file(incident.image_url)
+            db.delete(incident)
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    "This photo doesn't appear to show a reportable incident. "
+                    "Please capture the accident, fire or emergency scene and try again."
+                ),
+            )
     else:
         # Dispatch async to the Celery worker. If the broker is unreachable
         # (e.g. dev box without Redis), fall back to a sync run so the
@@ -130,9 +229,15 @@ def submit_incident(
     # Eager-load relationships for the response
     incident = db.scalar(
         select(Incident)
-        .options(selectinload(Incident.images), selectinload(Incident.ai_analysis))
+        .options(
+            selectinload(Incident.images),
+            selectinload(Incident.ai_analysis),
+            selectinload(Incident.reporter),
+        )
         .where(Incident.id == incident.id)
     )
+    # Notify officers that a new report needs attention.
+    _notify_officers_new_incident(db, incident)
     _incident_event(incident, "incident.created")
     return incident
 
@@ -146,7 +251,13 @@ def list_incidents(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> list[Incident]:
-    stmt = select(Incident).order_by(Incident.created_at.desc()).limit(limit).offset(offset)
+    stmt = (
+        select(Incident)
+        .options(selectinload(Incident.reporter))
+        .order_by(Incident.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
     if current_user.role == UserRole.citizen:
         stmt = stmt.where(Incident.reporter_id == current_user.id)
     if status_filter:
@@ -168,6 +279,7 @@ def nearby_incidents(
     delta = radius_km / 111.0
     stmt = (
         select(Incident)
+        .options(selectinload(Incident.reporter))
         .where(Incident.latitude.is_not(None))
         .where(Incident.longitude.is_not(None))
         .where(Incident.latitude.between(lat - delta, lat + delta))
@@ -192,7 +304,11 @@ def get_incident(
 ) -> Incident:
     incident = db.scalar(
         select(Incident)
-        .options(selectinload(Incident.images), selectinload(Incident.ai_analysis))
+        .options(
+            selectinload(Incident.images),
+            selectinload(Incident.ai_analysis),
+            selectinload(Incident.reporter),
+        )
         .where(Incident.id == incident_id)
     )
     if not incident:
@@ -232,13 +348,17 @@ def update_status(
     db.commit()
     db.refresh(incident)
 
-    # Notify reporter
+    # Notify reporter, with friendly per-status wording.
+    title, default_msg, notif_type = _STATUS_NOTIFICATION.get(
+        payload.status,
+        ("Report updated", f"Your report status is now {payload.status.value}.", "status_update"),
+    )
     create_notification(
         db,
         user_id=incident.reporter_id,
-        title=f"Report status updated: {payload.status.value}",
-        message=payload.note,
-        type="status_update",
+        title=title,
+        message=payload.note or default_msg,
+        type=notif_type,
         related_incident_id=incident.id,
     )
     _incident_event(incident, "incident.status_changed")

@@ -30,6 +30,58 @@ def test_submit_incident_runs_ai_and_returns_description(client, citizen_token):
     assert len(body["images"]) == 1
 
 
+def test_officer_sees_reporter_contact(client, citizen_token, officer_token, auth_header):
+    sub = _submit_incident(client, citizen_token).json()
+    r = client.get(f"/api/v1/incidents/{sub['id']}", headers=auth_header(officer_token))
+    assert r.status_code == 200, r.text
+    reporter = r.json()["reporter"]
+    assert reporter is not None
+    assert reporter["full_name"] == "Citizen Bar"
+    assert "phone" in reporter
+
+
+def test_officer_notified_on_new_report(client, citizen_token, officer_token, auth_header):
+    _submit_incident(client, citizen_token)
+    r = client.get("/api/v1/notifications/", headers=auth_header(officer_token))
+    assert r.status_code == 200
+    assert any(n["type"] == "incident_reported" for n in r.json())
+
+
+def test_rejects_non_incident_image(client, citizen_token, auth_header, monkeypatch):
+    """A photo the AI classifies as a non-incident (e.g. a person at a desk)
+    is rejected instead of being filed."""
+    from app.ai.image_analyzer import AnalysisResult
+    from app.services import ai_service
+
+    class _FakeAnalyzer:
+        model_version = "fake-1.0"
+
+        def analyze(self, _image_bytes):
+            return AnalysisResult(
+                caption="A person sitting at a desk in an office.",
+                scene_label="office",
+                detected_objects=[{"label": "person", "confidence": 0.9}],
+                confidence_score=0.9,
+                incident_type="general",
+                severity_level="low",
+                scenario="people_only",
+                model_version="fake-1.0",
+            )
+
+    monkeypatch.setattr(ai_service, "get_analyzer", lambda: _FakeAnalyzer())
+
+    r = client.post(
+        "/api/v1/incidents/",
+        headers=auth_header(citizen_token),
+        files={"image": ("office.jpg", make_test_image_bytes(), "image/jpeg")},
+        data={"severity_level": "low"},
+    )
+    assert r.status_code == 422, r.text
+    # The rejected report must not be persisted.
+    listed = client.get("/api/v1/incidents/", headers=auth_header(citizen_token)).json()
+    assert listed == []
+
+
 def test_citizen_only_sees_own_incidents(client, citizen_token, auth_header):
     _submit_incident(client, citizen_token)
     r = client.get("/api/v1/incidents/", headers=auth_header(citizen_token))

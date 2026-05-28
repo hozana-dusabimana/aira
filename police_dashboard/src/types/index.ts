@@ -67,9 +67,16 @@ export interface AIAnalysis {
   created_at: string;
 }
 
+export interface IncidentReporter {
+  id: number;
+  full_name: string;
+  phone?: string;
+}
+
 export interface Incident {
   id: number;
   reporter_id: number;
+  reporter?: IncidentReporter;
   image_url?: string;
   ai_description?: string;
   user_description?: string;

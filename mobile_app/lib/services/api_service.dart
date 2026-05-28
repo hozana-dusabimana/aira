@@ -11,6 +11,29 @@ import '../models/user.dart';
 
 void _log(String msg) => debugPrint('[aira.api] $msg');
 
+/// Extract a human-friendly message from an API error. FastAPI returns
+/// validation/business errors as `{"detail": "..."}`, so surface that to the
+/// user instead of a raw exception string.
+String apiErrorMessage(Object error, {String fallback = 'Something went wrong. Please try again.'}) {
+  if (error is DioException) {
+    final data = error.response?.data;
+    if (data is Map && data['detail'] != null) {
+      final detail = data['detail'];
+      if (detail is String) return detail;
+      if (detail is List && detail.isNotEmpty) {
+        final first = detail.first;
+        if (first is Map && first['msg'] != null) return first['msg'].toString();
+      }
+    }
+    if (error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.connectionError) {
+      return 'Network problem — please check your connection and try again.';
+    }
+  }
+  return fallback;
+}
+
 class ApiService {
   final Dio _dio;
   static const _kAccessToken = 'aira_access_token';
@@ -78,12 +101,13 @@ class ApiService {
   }
 
   // ---------- Auth ----------
-  Future<Map<String, dynamic>> login(String email, String password) async {
-    _log('login start email=$email url=${ApiConfig.apiBase}/auth/login');
+  /// [identifier] may be an email address or a phone number.
+  Future<Map<String, dynamic>> login(String identifier, String password) async {
+    _log('login start id=$identifier url=${ApiConfig.apiBase}/auth/login');
     final stopwatch = Stopwatch()..start();
     try {
       final res = await _dio.post('/auth/login',
-          data: {'email': email, 'password': password});
+          data: {'identifier': identifier, 'password': password});
       _log('login ok in ${stopwatch.elapsedMilliseconds}ms');
       await _saveTokens(res.data);
       return res.data as Map<String, dynamic>;
@@ -103,16 +127,16 @@ class ApiService {
 
   Future<Map<String, dynamic>> register({
     required String fullName,
-    required String email,
     required String password,
+    String? email,
     String? phone,
     String? nationalId,
   }) async {
     final res = await _dio.post('/auth/register', data: {
       'full_name': fullName,
-      'email': email,
       'password': password,
-      if (phone != null) 'phone': phone,
+      if (email != null && email.isNotEmpty) 'email': email,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
       if (nationalId != null) 'national_id': nationalId,
     });
     await _saveTokens(res.data);

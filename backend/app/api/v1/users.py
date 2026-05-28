@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.permissions import get_current_user
 from app.core.security import hash_password, verify_password
@@ -62,6 +62,7 @@ def my_incidents(
 ) -> list[Incident]:
     stmt = (
         select(Incident)
+        .options(selectinload(Incident.reporter))
         .where(Incident.reporter_id == current_user.id)
         .order_by(Incident.created_at.desc())
     )
