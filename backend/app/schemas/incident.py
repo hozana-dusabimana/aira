@@ -22,6 +22,15 @@ class IncidentImageOut(BaseModel):
     image_order: int
 
 
+class ReporterOut(BaseModel):
+    """Minimal reporter contact info shown to officers/admins handling a report."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    full_name: str
+    phone: str | None = None
+
+
 class AIAnalysisOut(BaseModel):
     model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
@@ -52,6 +61,7 @@ class IncidentOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     resolved_at: datetime | None = None
+    reporter: ReporterOut | None = None
 
 
 class IncidentDetail(IncidentOut):

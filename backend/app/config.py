@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     AI_ENABLED: bool = False
     AUTO_SEED: bool = True
 
+    # Reject uploads the AI does not recognise as a reportable incident
+    # (e.g. a person sitting in an office) so officers aren't disturbed by
+    # non-incident photos. Set false to accept every upload.
+    INCIDENT_VALIDATION_ENABLED: bool = True
+
     # --- Rate limiting -------------------------------------------------
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_USE_REDIS: bool = False

@@ -87,7 +87,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
         ),
       );
     } catch (e) {
-      if (mounted) setState(() => _error = 'Submission failed: $e');
+      if (mounted) {
+        setState(() => _error = apiErrorMessage(e, fallback: 'Submission failed. Please try again.'));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }

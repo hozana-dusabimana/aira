@@ -6,6 +6,7 @@ import { SeverityBadge, StatusBadge } from '../components/incidents/StatusBadge'
 import { incidents as incidentsApi } from '../services/api';
 import { realtime } from '../services/realtime';
 import type { Incident, IncidentMessage, IncidentStatus } from '../types';
+import { incidentTypeLabel } from '../utils/incident';
 
 const STATUS_CONFIRM: Record<
   IncidentStatus,
@@ -181,10 +182,25 @@ export default function IncidentDetails() {
           <h3 style={{ marginTop: 0 }}>Details</h3>
           <table className="table">
             <tbody>
-              <tr><th>Type</th><td>{incident.incident_type ?? '—'}</td></tr>
+              <tr><th>Type</th><td>{incidentTypeLabel(incident.incident_type)}</td></tr>
               <tr><th>Status</th><td><StatusBadge status={incident.status} /></td></tr>
               <tr><th>Severity</th><td><SeverityBadge severity={incident.severity_level} /></td></tr>
-              <tr><th>Reporter</th><td>#{incident.reporter_id}</td></tr>
+              <tr>
+                <th>Reporter</th>
+                <td>
+                  {incident.reporter?.full_name ?? `#${incident.reporter_id}`}
+                </td>
+              </tr>
+              <tr>
+                <th>Phone</th>
+                <td>
+                  {incident.reporter?.phone ? (
+                    <a href={`tel:${incident.reporter.phone}`}>{incident.reporter.phone}</a>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+              </tr>
               <tr><th>Created</th><td>{new Date(incident.created_at).toLocaleString()}</td></tr>
               <tr><th>Updated</th><td>{new Date(incident.updated_at).toLocaleString()}</td></tr>
               {incident.resolved_at && (

@@ -23,6 +23,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    final email = _email.text.trim();
+    final phone = _phone.text.trim();
+    if (email.isEmpty && phone.isEmpty) {
+      setState(() => _error = 'Enter an email address or a phone number.');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -30,14 +36,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       await context.read<AuthProvider>().register(
             fullName: _name.text.trim(),
-            email: _email.text.trim(),
+            email: email.isEmpty ? null : email,
             password: _pwd.text,
-            phone: _phone.text.trim().isEmpty ? null : _phone.text.trim(),
+            phone: phone.isEmpty ? null : phone,
           );
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/home');
     } catch (e) {
-      setState(() => _error = 'Registration failed: $e');
+      setState(() => _error = apiErrorMessage(e, fallback: 'Registration failed. Please try again.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -61,15 +67,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _email,
-                decoration: const InputDecoration(labelText: 'Email'),
+                decoration: const InputDecoration(
+                  labelText: 'Email (optional if phone given)',
+                ),
                 keyboardType: TextInputType.emailAddress,
-                validator: (v) =>
-                    v == null || !v.contains('@') ? 'Invalid email' : null,
+                validator: (v) => v != null && v.trim().isNotEmpty && !v.contains('@')
+                    ? 'Enter a valid email'
+                    : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _phone,
-                decoration: const InputDecoration(labelText: 'Phone (optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Phone (optional if email given)',
+                ),
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 12),

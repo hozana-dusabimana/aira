@@ -26,6 +26,31 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO if not settings.DEBUG else logging.DEBUG)
 
 
+def _run_lightweight_migrations() -> None:
+    """Apply additive, idempotent schema tweaks on existing (non-SQLite) DBs.
+
+    ``Base.metadata.create_all`` never ALTERs an already-existing table, so
+    columns/constraints introduced after a table was first created must be
+    applied by hand. Each statement runs in its own transaction and failures
+    (e.g. the change is already applied) are ignored.
+    """
+    if settings.DATABASE_URL.startswith("sqlite"):
+        return
+    statements = [
+        # Allow phone-only citizen accounts: email may now be NULL.
+        "ALTER TABLE users MODIFY email VARCHAR(190) NULL",
+        # Phone becomes a unique login identifier.
+        "ALTER TABLE users ADD UNIQUE INDEX uq_users_phone (phone)",
+    ]
+    for stmt in statements:
+        try:
+            with engine.begin() as conn:
+                conn.execute(text(stmt))
+            logger.info("Migration applied: %s", stmt)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Migration skipped (%s): %s", stmt, str(exc)[:120])
+
+
 def _auto_seed() -> None:
     """Create default admin / officer / citizen accounts and stations if missing."""
     with session_scope() as db:
@@ -92,6 +117,10 @@ def _auto_seed() -> None:
 async def lifespan(_: FastAPI):
     Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
+    try:
+        _run_lightweight_migrations()
+    except Exception:
+        logger.exception("Lightweight migrations failed (continuing)")
     if settings.AUTO_SEED:
         try:
             _auto_seed()

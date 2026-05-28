@@ -29,6 +29,26 @@ class Incident {
     this.resolvedAt,
   });
 
+  /// Human-friendly label for [incidentType]. Falls back gracefully so the
+  /// user never sees a raw "unknown" / null value.
+  String get typeLabel {
+    const labels = {
+      'fire': 'Fire',
+      'traffic': 'Traffic accident',
+      'violent_crime': 'Violent crime',
+      'theft': 'Theft',
+      'vandalism': 'Vandalism',
+      'suspicious_activity': 'Suspicious activity',
+      'general': 'Other',
+    };
+    final t = incidentType?.trim().toLowerCase();
+    if (t == null || t.isEmpty) return 'Pending review';
+    final mapped = labels[t];
+    if (mapped != null) return mapped;
+    final pretty = t.replaceAll('_', ' ');
+    return pretty[0].toUpperCase() + pretty.substring(1);
+  }
+
   factory Incident.fromJson(Map<String, dynamic> json) => Incident(
         id: json['id'] as int,
         reporterId: json['reporter_id'] as int,

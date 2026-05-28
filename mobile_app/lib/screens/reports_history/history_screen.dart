@@ -130,7 +130,7 @@ class _IncidentTile extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            incident.incidentType ?? 'Incident',
+                            incident.typeLabel,
                             style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               color: AiraColors.navy,
