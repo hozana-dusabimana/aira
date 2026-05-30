@@ -1,8 +1,9 @@
 name: Deploy backend
 
-# Redeploys ONLY the backend + Celery worker (and shared infra if needed) when
-# backend code or the compose definition changes on main. The dashboard is left
-# running untouched.
+# Redeploys ONLY the backend + Celery worker when backend code or the prod
+# compose file changes on main. The dashboard is left running untouched.
+# Uses docker-compose.prod.yml (reuses the host MySQL + Redis; secrets in
+# .env.prod on the host). Behind CloudPanel nginx -> api-aira.isiri.rw.
 #
 # Host (98.83.16.194) and user (ubuntu) are hardcoded below.
 # Required repository secret:
@@ -19,7 +20,7 @@ on:
     branches: [main]
     paths:
       - "backend/**"
-      - "docker-compose.yml"
+      - "docker-compose.prod.yml"
       - ".github/workflows/deploy-backend.yml"
   workflow_dispatch:
 
@@ -65,18 +66,22 @@ jobs:
           git fetch --all --prune
           git reset --hard origin/main
 
+          # Production stack reuses the host MySQL + Redis; config/secrets live
+          # in .env.prod on the host (untracked, survives git reset).
+          COMPOSE="$DC -f docker-compose.prod.yml --env-file .env.prod"
+
           echo "Rebuilding backend services only"
-          $DC up -d --build --no-deps backend worker
+          $COMPOSE up -d --build backend worker
 
           docker image prune -f || true
-          $DC ps
+          $COMPOSE ps
           EOF
 
       - name: Verify backend health
         run: |
-          echo "Waiting for backend to report healthy..."
+          echo "Waiting for the API to report healthy via the public domain..."
           for i in $(seq 1 20); do
-            if curl -fsS "http://$EC2_HOST:8000/health" >/dev/null; then
+            if curl -fsS "https://api-aira.isiri.rw/health" >/dev/null; then
               echo "Backend is healthy."
               exit 0
             fi

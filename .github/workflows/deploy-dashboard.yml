@@ -1,7 +1,8 @@
 name: Deploy dashboard
 
 # Redeploys ONLY the police dashboard when its code changes on main.
-# The backend, worker, MySQL and Redis are left running untouched.
+# The backend and worker are left running untouched. Uses docker-compose.prod.yml.
+# Behind CloudPanel nginx -> aira.isiri.rw.
 #
 # Host (98.83.16.194) and user (ubuntu) are hardcoded below.
 # Required repository secret:
@@ -63,18 +64,20 @@ jobs:
           git fetch --all --prune
           git reset --hard origin/main
 
+          COMPOSE="$DC -f docker-compose.prod.yml --env-file .env.prod"
+
           echo "Rebuilding dashboard only"
-          $DC up -d --build --no-deps dashboard
+          $COMPOSE up -d --build dashboard
 
           docker image prune -f || true
-          $DC ps
+          $COMPOSE ps
           EOF
 
       - name: Verify dashboard responds
         run: |
-          echo "Waiting for dashboard to respond..."
+          echo "Waiting for the dashboard to respond via the public domain..."
           for i in $(seq 1 20); do
-            if curl -fsS "http://$EC2_HOST:5173/" >/dev/null; then
+            if curl -fsS "https://aira.isiri.rw/" >/dev/null; then
               echo "Dashboard is up."
               exit 0
             fi
