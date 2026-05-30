@@ -1,9 +1,5 @@
 import { Link } from 'react-router-dom';
-
-// Always points at the newest APK published by the build-mobile-apk workflow
-// (rolling "mobile-latest" GitHub release).
-const APK_URL =
-  'https://github.com/hozana-dusabimana/aira/releases/download/mobile-latest/aira.apk';
+import { APK_URL } from '../config';
 
 export default function Landing() {
   return (

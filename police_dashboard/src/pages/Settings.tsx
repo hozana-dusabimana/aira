@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { APK_URL } from '../config';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -36,6 +37,19 @@ export default function Settings() {
             <tr><th>Role</th><td>{user?.role}</td></tr>
           </tbody>
         </table>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Mobile app</h3>
+        <p style={{ color: 'var(--muted)', marginTop: 0 }}>
+          Download the AIRA Android app to report and review incidents on the go.
+        </p>
+        <a href={APK_URL} className="btn-primary btn-download" download>
+          <span aria-hidden="true">⬇</span> Download Android app (APK)
+        </a>
+        <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 0 }}>
+          Android only · enable “install from unknown sources” to complete setup.
+        </p>
       </div>
 
       <form className="card" onSubmit={changePassword}>
