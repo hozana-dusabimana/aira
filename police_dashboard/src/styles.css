@@ -1249,7 +1249,10 @@ input:focus, select:focus, textarea:focus {
   max-width: 540px;
   margin: 0 0 28px;
 }
-.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 36px; }
+.hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.btn-download { gap: 8px; }
+.btn-download span { font-size: 16px; line-height: 1; }
+.hero-apk-note { font-size: 12px; color: var(--muted); margin: 0 0 36px; }
 .hero-stats {
   display: flex;
   gap: 36px;

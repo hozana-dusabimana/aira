@@ -1,5 +1,10 @@
 import { Link } from 'react-router-dom';
 
+// Always points at the newest APK published by the build-mobile-apk workflow
+// (rolling "mobile-latest" GitHub release).
+const APK_URL =
+  'https://github.com/hozana-dusabimana/aira/releases/download/mobile-latest/aira.apk';
+
 export default function Landing() {
   return (
     <div className="landing">
@@ -19,6 +24,7 @@ export default function Landing() {
             <a href="#contact">Contact</a>
           </nav>
           <div className="landing-nav-cta">
+            <a href={APK_URL} className="btn-ghost" download>Get the app</a>
             <Link to="/login" className="btn-outline">Officer sign in</Link>
           </div>
         </div>
@@ -35,9 +41,13 @@ export default function Landing() {
               AI verification and a unified operations dashboard.
             </p>
             <div className="hero-actions">
-              <Link to="/login" className="btn-primary">Sign in to dashboard</Link>
+              <a href={APK_URL} className="btn-primary btn-download" download>
+                <span aria-hidden="true">⬇</span> Download Android app
+              </a>
+              <Link to="/login" className="btn-ghost">Sign in to dashboard</Link>
               <a href="#how-it-works" className="btn-ghost">Learn more</a>
             </div>
+            <p className="hero-apk-note">Android APK · install from a trusted source enabled</p>
             <div className="hero-stats">
               <div>
                 <strong>24/7</strong>
