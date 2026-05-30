@@ -1,0 +1,66 @@
+# Production stack for the EC2 / CloudPanel host.
+#
+# Differences from docker-compose.yml (the dev stack):
+#   - NO MySQL container: the backend reuses the host's existing MySQL
+#     (managed by CloudPanel) to save memory. Hence backend/worker use
+#     network_mode: host so they can reach MySQL on 127.0.0.1:3306.
+#   - All ports bind to 127.0.0.1 only; the host's CloudPanel nginx terminates
+#     TLS and reverse-proxies the public domains to these local ports.
+#   - Secrets/config come from .env.prod (NOT committed; see .env.prod.example).
+#
+# Deploy:  docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build:
+      context: ./backend
+      args:
+        INSTALL_ML: "${INSTALL_ML:-0}"
+    restart: unless-stopped
+    # Host networking lets the backend reach the host MySQL on 127.0.0.1 without
+    # changing MySQL's bind-address. Bind uvicorn to loopback so it is never
+    # exposed publicly — only the host's nginx (and Redis) can reach it.
+    network_mode: host
+    command: ["uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"]
+    env_file:
+      - .env.prod
+    volumes:
+      - backend_uploads:/app/uploads
+
+  worker:
+    build:
+      context: ./backend
+      args:
+        INSTALL_ML: "${INSTALL_ML:-0}"
+    restart: unless-stopped
+    network_mode: host
+    command: ["celery", "-A", "app.tasks.celery_app:celery_app", "worker", "--loglevel=info"]
+    env_file:
+      - .env.prod
+    volumes:
+      - backend_uploads:/app/uploads
+
+  dashboard:
+    build:
+      context: ./police_dashboard
+      args:
+        VITE_API_BASE_URL: "https://api-aira.isiri.rw/api/v1"
+        VITE_BACKEND_ORIGIN: "https://api-aira.isiri.rw"
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5173:80"
+    volumes:
+      # Static-only nginx config (the SPA uses absolute API URLs in prod).
+      - ./police_dashboard/nginx-prod.conf:/etc/nginx/conf.d/default.conf:ro
+
+volumes:
+  backend_uploads:
+  redis_data:
