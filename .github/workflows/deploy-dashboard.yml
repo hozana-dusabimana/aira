@@ -1,0 +1,87 @@
+name: Deploy dashboard
+
+# Redeploys ONLY the police dashboard when its code changes on main.
+# The backend and worker are left running untouched. Uses docker-compose.prod.yml.
+# Behind CloudPanel nginx -> aira.isiri.rw.
+#
+# Host (98.83.16.194) and user (ubuntu) are hardcoded below.
+# Required repository secret:
+#   EC2_SSH_KEY  - private SSH key (PEM contents) authorized on the EC2 host
+# Optional repository variable:
+#   EC2_APP_DIR  - absolute path to the repo on the host (default: $HOME/aira)
+
+env:
+  EC2_HOST: "98.83.16.194"
+  EC2_USER: "ubuntu"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "police_dashboard/**"
+      - ".github/workflows/deploy-dashboard.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dashboard-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy dashboard
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy over SSH
+        env:
+          APP_DIR: ${{ vars.EC2_APP_DIR }}
+        run: |
+          ssh -i ~/.ssh/ec2_key "$EC2_USER@$EC2_HOST" \
+            "APP_DIR='${APP_DIR}' bash -s" <<'EOF'
+          set -euo pipefail
+
+          APP_DIR="${APP_DIR:-$HOME/aira}"
+
+          if docker compose version >/dev/null 2>&1; then
+            DC="docker compose"
+          else
+            DC="docker-compose"
+          fi
+
+          if [ ! -d "${APP_DIR}/.git" ]; then
+            echo "Cloning repository into ${APP_DIR}"
+            git clone https://github.com/hozana-dusabimana/aira.git "${APP_DIR}"
+          fi
+
+          cd "${APP_DIR}"
+          git fetch --all --prune
+          git reset --hard origin/main
+
+          COMPOSE="$DC -f docker-compose.prod.yml --env-file .env.prod"
+
+          echo "Rebuilding dashboard only"
+          $COMPOSE up -d --build dashboard
+
+          docker image prune -f || true
+          $COMPOSE ps
+          EOF
+
+      - name: Verify dashboard responds
+        run: |
+          echo "Waiting for the dashboard to respond via the public domain..."
+          for i in $(seq 1 20); do
+            if curl -fsS "https://aira.isiri.rw/" >/dev/null; then
+              echo "Dashboard is up."
+              exit 0
+            fi
+            sleep 6
+          done
+          echo "Dashboard did not respond in time." >&2
+          exit 1

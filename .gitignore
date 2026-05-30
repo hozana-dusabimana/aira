@@ -29,6 +29,8 @@ android/local.properties
 # Env / secrets
 .env
 .env.local
+.env.prod
+.env.production
 *.pem
 *.key
 
@@ -48,3 +50,5 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+private-key.md

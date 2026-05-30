@@ -1,0 +1,69 @@
+name: Build mobile APK
+
+# Builds the Flutter Android APK when the mobile app changes on main, and
+# publishes it to a rolling "mobile-latest" GitHub Release. The dashboard's
+# landing page links to:
+#   https://github.com/hozana-dusabimana/aira/releases/download/mobile-latest/aira.apk
+#
+# The APK is built pointing at the production API (api-aira.isiri.rw) via
+# --dart-define=AIRA_API_URL (see mobile_app/lib/config/api_config.dart).
+# Release builds are signed with the debug key (see android/app/build.gradle.kts),
+# so no signing secrets are required.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mobile_app/**"
+      - ".github/workflows/build-mobile-apk.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: build-mobile-apk
+  cancel-in-progress: true
+
+permissions:
+  contents: write # needed to create/update the release
+
+jobs:
+  build:
+    name: Build & publish APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build release APK
+        run: |
+          flutter build apk --release \
+            --dart-define=AIRA_API_URL=https://api-aira.isiri.rw
+          cp build/app/outputs/flutter-apk/app-release.apk aira.apk
+
+      - name: Publish to rolling release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: mobile-latest
+          name: AIRA mobile (latest)
+          body: |
+            Latest AIRA Android app build.
+            Commit: ${{ github.sha }}
+            Built against API: https://api-aira.isiri.rw
+          files: mobile_app/aira.apk
+          make_latest: false
