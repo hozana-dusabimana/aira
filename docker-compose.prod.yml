@@ -4,21 +4,14 @@
 #   - NO MySQL container: the backend reuses the host's existing MySQL
 #     (managed by CloudPanel) to save memory. Hence backend/worker use
 #     network_mode: host so they can reach MySQL on 127.0.0.1:3306.
+#   - NO Redis container: reuses the host's existing Redis (127.0.0.1:6379) on
+#     dedicated DB numbers (10/11/12) so it never collides with other projects.
 #   - All ports bind to 127.0.0.1 only; the host's CloudPanel nginx terminates
 #     TLS and reverse-proxies the public domains to these local ports.
 #   - Secrets/config come from .env.prod (NOT committed; see .env.prod.example).
 #
 # Deploy:  docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 services:
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    command: ["redis-server", "--save", "60", "1", "--appendonly", "no"]
-    ports:
-      - "127.0.0.1:6379:6379"
-    volumes:
-      - redis_data:/data
-
   backend:
     build:
       context: ./backend
@@ -63,4 +56,3 @@ services:
 
 volumes:
   backend_uploads:
-  redis_data:
