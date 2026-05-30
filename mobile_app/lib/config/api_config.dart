@@ -1,10 +1,10 @@
 class ApiConfig {
-  // For Android emulator: 10.0.2.2 maps to host machine.
-  // For iOS simulator / web / desktop: 127.0.0.1 works.
-  // For a real phone on the same Wi-Fi: use the dev machine's LAN IP.
+  // Defaults to the production API. Override for local development with:
+  //   flutter run --dart-define=AIRA_API_URL=http://10.0.2.2:8000   (Android emulator)
+  //   flutter run --dart-define=AIRA_API_URL=http://<LAN-IP>:8000   (real phone on Wi-Fi)
   static const String baseUrl = String.fromEnvironment(
     'AIRA_API_URL',
-    defaultValue: 'http://192.168.1.67:8000',
+    defaultValue: 'https://api-aira.isiri.rw',
   );
 
   static const String apiPrefix = '/api/v1';
