@@ -22,6 +22,7 @@ actions, or something that conflicts with what's already on the server).
 - Project type:              <e.g. FastAPI backend + React/Vite SPA + Celery worker>
 - Needs a database?          <yes: MySQL / no>
 - Needs Redis/queue?         <yes / no>
+- Has a Flutter mobile app?  <yes (build APK + add web download button) / no>
 - Preferred local ports:     <pick 127.0.0.1 ports, e.g. backend 8001, frontend 5174>
 
 === PORT RULE ===
@@ -69,6 +70,24 @@ Make the CloudPanel reverse-proxy site point at whatever port you actually used.
      --hard origin/main`, rebuild ONLY the changed service via the prod compose,
      and health-check the PUBLIC domains.
    - Gitignore `private-key.md`, `.env.prod`, `*.pem`, `*.key`.
+4. IF THE PROJECT HAS A FLUTTER MOBILE APP (an app dir with pubspec.yaml +
+   android/): add an APK build workflow + a web download button, like AIRA did.
+   - `build-mobile-apk.yml`: trigger on push to main when the mobile dir changes
+     (+ workflow_dispatch). Set up Java 17 + Flutter (subosito/flutter-action,
+     channel stable), `flutter pub get`, then
+     `flutter build apk --release --dart-define=<API_URL_KEY>=https://<api-domain>`
+     (use the app's own compile-time env key; check its api config). Copy the APK
+     to a stable name (e.g. aira.apk) and publish it to a ROLLING GitHub release
+     (tag_name: mobile-latest, make_latest: false) via softprops/action-gh-release.
+     Needs `permissions: contents: write`; no signing secrets if release builds
+     use the debug key (typical Flutter default) — otherwise ask me for a keystore.
+   - Make the app default its API base URL to the production domain (override for
+     local dev with --dart-define). Confirm the WebSocket/realtime URL derives
+     `wss://` from an `https://` base.
+   - Web download button(s): a single shared constant for the URL
+     `https://github.com/<owner>/<repo>/releases/download/mobile-latest/<apk>`,
+     used on the public landing page AND inside the authenticated app (e.g.
+     Settings). Note it 404s until the first APK build runs.
 
 === VERIFY (must all pass before you call it done) ===
 - https://<api-domain>/health returns 200 and the API docs load.
@@ -77,6 +96,9 @@ Make the CloudPanel reverse-proxy site point at whatever port you actually used.
 - One real DB-backed request works through the public domain (e.g. a login).
 - A CORS preflight from the app origin returns the right Access-Control-Allow-Origin.
 - Containers use `restart: unless-stopped` and Docker is enabled (survives reboot).
+- (Mobile) APK build workflow exists and is wired to the prod API; the web
+  download button points at the rolling release asset. Trigger one build (manual
+  dispatch) and confirm the APK downloads and the WS upgrade returns HTTP 101.
 
 === TELL ME AT THE END (things you can't do) ===
 - The exact local ports you ended up using (in case the PORT RULE bumped them).
@@ -98,3 +120,7 @@ Make the CloudPanel reverse-proxy site point at whatever port you actually used.
   collision).
 - Reference implementation: AIRA's `docker-compose.prod.yml`, `.env.prod.example`,
   `police_dashboard/nginx-prod.conf`, and `.github/workflows/`.
+- Mobile reference: AIRA's `.github/workflows/build-mobile-apk.yml`,
+  `mobile_app/lib/config/api_config.dart` (compile-time API URL), and the
+  `APK_URL` constant in `police_dashboard/src/config.ts` used by the landing page
+  and Settings.
