@@ -81,7 +81,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
               padding: const EdgeInsets.all(16),
               itemCount: list.length,
               separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) => _IncidentTile(incident: list[i]),
+              itemBuilder: (_, i) =>
+                  _IncidentTile(incident: list[i], api: widget.api),
             );
           },
         ),
@@ -92,7 +93,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
 class _IncidentTile extends StatelessWidget {
   final Incident incident;
-  const _IncidentTile({required this.incident});
+  final ApiService api;
+  const _IncidentTile({required this.incident, required this.api});
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +103,7 @@ class _IncidentTile extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => IncidentResultScreen(incident: incident),
+          builder: (_) => IncidentResultScreen(incident: incident, api: api),
         )),
         child: Padding(
           padding: const EdgeInsets.all(14),
