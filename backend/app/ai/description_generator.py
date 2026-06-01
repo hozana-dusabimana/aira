@@ -365,7 +365,7 @@ def _narrative_general(g: dict[str, list[str]]) -> list[str]:
     if g["vehicles"]:
         detected.append(_vehicle_phrase(g["vehicles"]))
     if g["other"]:
-        detected.append(", ".join(sorted(set(g["other"])[:5])))
+        detected.append(", ".join(sorted(set(g["other"]))[:5]))
     detected_str = "; ".join(detected) if detected else "no clearly identifiable subjects"
     return [
         (
