@@ -185,11 +185,22 @@ class MLAnalyzer:
     def _load(self) -> None:
         if self._yolo is not None:
             return
+        import os
+
         from ultralytics import YOLO  # type: ignore
         from transformers import BlipForConditionalGeneration, BlipProcessor  # type: ignore
 
+        # Keep YOLO weights in a persistent dir (mounted volume in prod) so they
+        # survive container rebuilds instead of re-downloading into the CWD.
+        weights_dir = os.environ.get("ML_WEIGHTS_DIR", "/app/weights")
+        try:
+            os.makedirs(weights_dir, exist_ok=True)
+            yolo_path = os.path.join(weights_dir, "yolov8n.pt")
+        except OSError:
+            yolo_path = "yolov8n.pt"
+
         logger.info("Loading YOLOv8n + BLIP captioning models...")
-        self._yolo = YOLO("yolov8n.pt")
+        self._yolo = YOLO(yolo_path)
         self._blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
         self._blip_model = BlipForConditionalGeneration.from_pretrained(
             "Salesforce/blip-image-captioning-base"

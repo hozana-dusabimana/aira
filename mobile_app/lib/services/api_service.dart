@@ -186,7 +186,10 @@ class ApiService {
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       'severity_level': severity,
-      'run_ai': true,
+      // Async analysis: the server returns immediately with status=analyzing
+      // and runs the (slow) AI analysis in the background. The result screen
+      // polls getIncident() until analysis completes.
+      'run_ai': false,
     });
     final res = await _dio.post('/incidents/', data: form);
     return Incident.fromJson(res.data as Map<String, dynamic>);

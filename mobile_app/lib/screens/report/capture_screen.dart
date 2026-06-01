@@ -83,7 +83,8 @@ class _CaptureScreenState extends State<CaptureScreen> {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => IncidentResultScreen(incident: incident),
+          builder: (_) =>
+              IncidentResultScreen(incident: incident, api: widget.api),
         ),
       );
     } catch (e) {

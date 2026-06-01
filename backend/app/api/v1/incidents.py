@@ -4,7 +4,18 @@ from math import asin, cos, radians, sin, sqrt
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -28,18 +39,13 @@ from app.schemas.incident import (
 )
 from app.core.rate_limit import INCIDENT_SUBMIT_LIMIT, limiter
 from app.realtime import broadcaster
-from app.services.ai_service import analyze_incident_sync
+from app.services.ai_service import analyze_incident_sync, emit_incident_event
 from app.services.file_service import save_upload
 from app.services.notification_service import create_notification
 
 router = APIRouter()
 
 logger = logging.getLogger(__name__)
-
-# Categories that mean "the AI could not recognise a real incident". Uploads
-# that classify into one of these (or have no type at all) are rejected so
-# officers are not disturbed by non-incident photos.
-_NON_INCIDENT_TYPES = {"", "general"}
 
 # Per-status (title, default message, notification type) used when the
 # reporter is notified that an officer acted on their report.
@@ -72,72 +78,6 @@ _STATUS_NOTIFICATION: dict[IncidentStatus, tuple[str, str, str]] = {
 }
 
 
-def _looks_like_incident(incident: Incident) -> bool:
-    return (incident.incident_type or "").strip().lower() not in _NON_INCIDENT_TYPES
-
-
-def _delete_upload_file(image_url: str | None) -> None:
-    """Best-effort removal of a stored upload (used when a report is rejected)."""
-    if not image_url:
-        return
-    rel = image_url.lstrip("/")
-    try:
-        path = Path(settings.UPLOAD_DIR).resolve().parent / rel
-        if not path.exists():
-            path = Path(settings.UPLOAD_DIR).resolve() / Path(rel).name
-        path.unlink(missing_ok=True)
-    except Exception:  # noqa: BLE001
-        logger.debug("Could not delete rejected upload: %s", image_url)
-
-
-def _notify_officers_new_incident(db: Session, incident: Incident) -> None:
-    """Notify every active officer that a new report has come in."""
-    officer_ids = db.scalars(
-        select(User.id).where(User.role == UserRole.officer, User.is_active.is_(True))
-    ).all()
-    summary = (
-        incident.ai_description
-        or incident.user_description
-        or "A citizen submitted a new incident report."
-    )
-    for uid in officer_ids:
-        create_notification(
-            db,
-            user_id=uid,
-            title=f"New {(incident.incident_type or 'incident').replace('_', ' ')} report submitted",
-            message=summary[:200],
-            type="incident_reported",
-            related_incident_id=incident.id,
-        )
-
-
-def _incident_event(incident: Incident, event: str) -> None:
-    reporter = incident.reporter
-    payload = {
-        "id": incident.id,
-        "status": incident.status.value if incident.status else None,
-        "incident_type": incident.incident_type,
-        "severity_level": incident.severity_level.value if incident.severity_level else None,
-        "ai_description": incident.ai_description,
-        "user_description": incident.user_description,
-        "image_url": incident.image_url,
-        "latitude": float(incident.latitude) if incident.latitude is not None else None,
-        "longitude": float(incident.longitude) if incident.longitude is not None else None,
-        "reporter_id": incident.reporter_id,
-        "reporter": (
-            {"id": reporter.id, "full_name": reporter.full_name, "phone": reporter.phone}
-            if reporter
-            else None
-        ),
-        "assigned_officer_id": incident.assigned_officer_id,
-        "created_at": incident.created_at.isoformat() if incident.created_at else None,
-        "updated_at": incident.updated_at.isoformat() if incident.updated_at else None,
-    }
-    broadcaster.publish(broadcaster.staff_topic(), event, payload)
-    broadcaster.publish(broadcaster.user_topic(incident.reporter_id), event, payload)
-    broadcaster.publish(broadcaster.incident_topic(incident.id), event, payload)
-
-
 # --- Helpers ----------------------------------------------------------
 
 def _user_can_see(user: User, incident: Incident) -> bool:
@@ -162,6 +102,7 @@ def submit_incident(
     request: Request,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
+    background_tasks: BackgroundTasks,
     image: UploadFile = File(...),
     user_description: str | None = Form(None),
     latitude: float | None = Form(None),
@@ -170,9 +111,13 @@ def submit_incident(
     severity_level: str = Form("medium"),
     run_ai: bool = Form(True),
 ) -> Incident:
-    """Submit a new incident report. AI analysis runs synchronously by default
-    (so the API response already contains the description). Set ``run_ai=false``
-    to defer to a background worker."""
+    """Submit a new incident report.
+
+    With ``run_ai=true`` (default) AI analysis runs synchronously so the HTTP
+    response already contains the AI summary. With ``run_ai=false`` the report
+    is created with status ``analyzing`` and the analysis runs in a background
+    task; the client receives the result via realtime events / polling. The
+    mobile app uses the async mode so submission is instant."""
     image_url, _ = save_upload(image)
 
     try:
@@ -199,13 +144,12 @@ def submit_incident(
     db.commit()
 
     if run_ai:
-        analyze_incident_sync(db, incident.id)
-        db.refresh(incident)
-        # Reject photos the AI does not recognise as a reportable incident
-        # (e.g. someone simply sitting in an office) so officers aren't
-        # disturbed by non-incident uploads.
-        if settings.INCIDENT_VALIDATION_ENABLED and not _looks_like_incident(incident):
-            _delete_upload_file(incident.image_url)
+        # Synchronous: the HTTP response already carries the AI summary. Used
+        # by API clients/tests that want the analysis inline. analyze_incident_sync
+        # handles validation, notifications and realtime events itself.
+        outcome = analyze_incident_sync(db, incident.id)
+        if outcome == "rejected":
+            # Don't persist a non-incident report (officers were not notified).
             db.delete(incident)
             db.commit()
             raise HTTPException(
@@ -216,15 +160,15 @@ def submit_incident(
                 ),
             )
     else:
-        # Dispatch async to the Celery worker. If the broker is unreachable
-        # (e.g. dev box without Redis), fall back to a sync run so the
-        # incident still gets processed.
-        try:
-            from app.tasks.ai_tasks import analyze_incident_task
-            analyze_incident_task.delay(incident.id)
-        except Exception:  # noqa: BLE001
-            analyze_incident_sync(db, incident.id)
-            db.refresh(incident)
+        # Async: return immediately with status=analyzing and run the analysis
+        # in a background task *in this process* (so the in-process realtime
+        # broadcaster can still push incident.analyzed / incident.rejected to
+        # the reporter's WebSocket — a Celery worker could not, as it has no
+        # WS connections bound). The mobile client polls / listens for the
+        # result instead of blocking on the request.
+        incident.status = IncidentStatus.analyzing
+        db.commit()
+        background_tasks.add_task(_run_async_analysis, incident.id)
 
     # Eager-load relationships for the response
     incident = db.scalar(
@@ -236,10 +180,38 @@ def submit_incident(
         )
         .where(Incident.id == incident.id)
     )
-    # Notify officers that a new report needs attention.
-    _notify_officers_new_incident(db, incident)
-    _incident_event(incident, "incident.created")
     return incident
+
+
+def _run_async_analysis(incident_id: int) -> None:
+    """Background-task entrypoint: analyze a submitted incident out-of-band.
+
+    Runs in the backend process (not Celery) so realtime events reach the
+    reporter. On rejection the row is kept (status=rejected) and the reporter
+    is told; on success analyze_incident_sync has already notified everyone.
+    """
+    from app.database import session_scope
+
+    try:
+        with session_scope() as db:
+            outcome = analyze_incident_sync(db, incident_id)
+            if outcome == "rejected":
+                incident = db.get(Incident, incident_id)
+                if incident is not None:
+                    create_notification(
+                        db,
+                        user_id=incident.reporter_id,
+                        title="Report could not be confirmed",
+                        message=(
+                            "After review, your photo could not be confirmed as a "
+                            "reportable incident."
+                        ),
+                        type="report_rejected",
+                        related_incident_id=incident.id,
+                    )
+                    emit_incident_event(incident, "incident.rejected")
+    except Exception:  # noqa: BLE001
+        logger.exception("Async analysis failed for incident %s", incident_id)
 
 
 @router.get("/", response_model=list[IncidentOut])
@@ -361,7 +333,7 @@ def update_status(
         type=notif_type,
         related_incident_id=incident.id,
     )
-    _incident_event(incident, "incident.status_changed")
+    emit_incident_event(incident, "incident.status_changed")
     return incident
 
 
@@ -395,7 +367,7 @@ def assign_incident(
         type="incident_assigned",
         related_incident_id=incident.id,
     )
-    _incident_event(incident, "incident.assigned")
+    emit_incident_event(incident, "incident.assigned")
     return incident
 
 
