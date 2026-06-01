@@ -38,8 +38,8 @@ def test_classifier_picks_low_light_for_dark_image():
 
 
 def test_classifier_recognises_cyclist_struck_by_vehicle():
-    """Combination of person + bicycle + car should classify as a traffic
-    accident with a casualty, not a generic 'general' scene."""
+    """Person + bicycle + car *with crash evidence in the caption* should
+    classify as a traffic accident with a casualty."""
     from app.ai.incident_classifier import classify_incident
 
     objs = [
@@ -47,7 +47,8 @@ def test_classifier_recognises_cyclist_struck_by_vehicle():
         {"label": "bicycle", "confidence": 0.6},
         {"label": "car", "confidence": 0.55},
     ]
-    incident_type, severity, scenario = classify_incident("road", objs)
+    caption = "a cyclist lying on the road after a crash with a car"
+    incident_type, severity, scenario = classify_incident("road", objs, caption)
     assert incident_type == "traffic"
     assert severity in {"critical", "high"}
     assert scenario == "cyclist_struck"
@@ -60,9 +61,51 @@ def test_classifier_recognises_pedestrian_collision():
         {"label": "person", "confidence": 0.8},
         {"label": "car", "confidence": 0.6},
     ]
-    incident_type, severity, scenario = classify_incident("road", objs)
+    caption = "a person was hit by a car and is injured on the road"
+    incident_type, severity, scenario = classify_incident("road", objs, caption)
     assert incident_type == "traffic"
     assert scenario == "pedestrian_struck"
+    assert severity == "critical"
+
+
+def test_classifier_does_not_overescalate_ordinary_traffic():
+    """Vehicles + a pedestrian with NO crash evidence must be a moderate
+    'traffic scene' to verify, not a critical collision."""
+    from app.ai.incident_classifier import classify_incident
+
+    objs = [
+        {"label": "car", "confidence": 0.9},
+        {"label": "car", "confidence": 0.85},
+        {"label": "person", "confidence": 0.8},
+    ]
+    caption = "cars driving down a city street"
+    incident_type, severity, scenario = classify_incident("street", objs, caption)
+    assert incident_type == "traffic"
+    assert scenario == "traffic_scene"
+    assert severity == "medium"
+
+
+def test_classifier_crowd_when_people_dominate():
+    from app.ai.incident_classifier import classify_incident
+
+    objs = [{"label": "person", "confidence": 0.6} for _ in range(12)]
+    objs.append({"label": "car", "confidence": 0.5})
+    incident_type, _severity, scenario = classify_incident(
+        "street", objs, "a large crowd of people marching down a street"
+    )
+    assert incident_type == "suspicious_activity"
+    assert scenario == "crowd_disturbance"
+
+
+def test_classifier_detects_fire_from_caption_without_fire_objects():
+    """YOLO/COCO has no 'fire' class, so caption keywords must catch fires."""
+    from app.ai.incident_classifier import classify_incident
+
+    objs = [{"label": "person", "confidence": 0.7}]
+    incident_type, severity, _scenario = classify_incident(
+        "scene", objs, "a building engulfed in flames with thick smoke"
+    )
+    assert incident_type == "fire"
     assert severity == "critical"
 
 

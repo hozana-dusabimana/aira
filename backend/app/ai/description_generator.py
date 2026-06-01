@@ -358,6 +358,41 @@ def _narrative_property_damage(g: dict[str, list[str]], with_people: bool) -> li
     ]
 
 
+def _narrative_traffic_scene(g: dict[str, list[str]]) -> list[str]:
+    """A road scene with vehicles/cyclists but no clear evidence of a crash."""
+    if g["bicycles"]:
+        parties = "a cyclist and " + (_vehicle_phrase(g["vehicles"]) or "a motor vehicle")
+    elif g["two_wheelers"]:
+        parties = "a motorcyclist and " + (_vehicle_phrase(g["vehicles"]) or "a motor vehicle")
+    else:
+        parties = _vehicle_phrase(g["vehicles"]) or "one or more vehicles"
+    people_clause = (
+        f", with {_people_phrase(len(g['people']))} in the vicinity"
+        if g["people"]
+        else ""
+    )
+    return [
+        (
+            f"A traffic scene has been reported involving {parties}{people_clause}. "
+            "The image shows road users on or beside the carriageway, but the "
+            "available visual evidence does not clearly indicate a collision, "
+            "injury, or significant damage."
+        ),
+        (
+            "This may be ordinary traffic, a stopped or obstructing vehicle, a "
+            "near-miss, or the early or aftermath stage of an incident that is "
+            "not obvious from the photograph alone. It is being filed for an "
+            "officer to verify on the ground rather than treated as a confirmed "
+            "emergency."
+        ),
+        (
+            "Officers should attend to confirm whether any vehicle is damaged, "
+            "anyone is injured, or the carriageway is obstructed, and escalate "
+            "the response if a collision or casualty is confirmed."
+        ),
+    ]
+
+
 def _narrative_general(g: dict[str, list[str]]) -> list[str]:
     detected = []
     if g["people"]:
@@ -525,6 +560,8 @@ def generate_description(
         paragraphs = _narrative_property_damage(g, with_people=True)
     elif scenario == "property_damage_no_people":
         paragraphs = _narrative_property_damage(g, with_people=False)
+    elif scenario == "traffic_scene":
+        paragraphs = _narrative_traffic_scene(g)
     elif scenario == "vehicle_present":
         paragraphs = [
             (

@@ -145,7 +145,7 @@ class StubAnalyzer:
                 "is consistent with a road traffic accident involving a cyclist."
             )
 
-        incident_type, severity, scenario = classify_incident(scene, objs)
+        incident_type, severity, scenario = classify_incident(scene, objs, caption)
         # Confidence is bounded by how distinctive the colour signal was.
         spread = max(avg_r, avg_g, avg_b) - min(avg_r, avg_g, avg_b)
         confidence = float(min(0.95, max(0.45, 0.55 + spread / 255 * 0.4)))
@@ -234,7 +234,7 @@ class MLAnalyzer:
         else:
             scene = "scene"
 
-        incident_type, severity, scenario = classify_incident(scene, objs)
+        incident_type, severity, scenario = classify_incident(scene, objs, caption)
         confidence = max((o["confidence"] for o in objs), default=0.5)
 
         return AnalysisResult(
