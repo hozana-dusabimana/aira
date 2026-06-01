@@ -27,6 +27,10 @@ services:
       - .env.prod
     volumes:
       - backend_uploads:/app/uploads
+      # Persist downloaded ML weights (YOLOv8n + BLIP, ~1 GB) so they are not
+      # re-downloaded on every rebuild. Used only when AI_ENABLED/INSTALL_ML=1.
+      - ml_cache:/root/.cache/huggingface
+      - ml_weights:/app/weights
 
   worker:
     build:
@@ -40,6 +44,8 @@ services:
       - .env.prod
     volumes:
       - backend_uploads:/app/uploads
+      - ml_cache:/root/.cache/huggingface
+      - ml_weights:/app/weights
 
   dashboard:
     build:
@@ -56,3 +62,5 @@ services:
 
 volumes:
   backend_uploads:
+  ml_cache:
+  ml_weights:
