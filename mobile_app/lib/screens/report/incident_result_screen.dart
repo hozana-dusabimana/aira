@@ -1,18 +1,85 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../config/theme.dart';
 import '../../models/incident.dart';
+import '../../services/api_service.dart';
 import '../../widgets/status_chips.dart';
 
-class IncidentResultScreen extends StatelessWidget {
+class IncidentResultScreen extends StatefulWidget {
   final Incident incident;
-  const IncidentResultScreen({super.key, required this.incident});
+  final ApiService api;
+  const IncidentResultScreen({
+    super.key,
+    required this.incident,
+    required this.api,
+  });
+
+  @override
+  State<IncidentResultScreen> createState() => _IncidentResultScreenState();
+}
+
+class _IncidentResultScreenState extends State<IncidentResultScreen> {
+  // Poll while the backend runs AI analysis in the background.
+  static const _pollInterval = Duration(seconds: 2);
+  static const _maxPolls = 30; // ~60s safety cap
+
+  late Incident _incident;
+  Timer? _poll;
+  int _polls = 0;
+  bool _timedOut = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _incident = widget.incident;
+    if (_isAnalyzing) {
+      _startPolling();
+    }
+  }
+
+  @override
+  void dispose() {
+    _poll?.cancel();
+    super.dispose();
+  }
+
+  bool get _isAnalyzing =>
+      _incident.status == 'analyzing' || _incident.status == 'pending';
+
+  bool get _isRejected => _incident.status == 'rejected';
+
+  void _startPolling() {
+    _poll?.cancel();
+    _poll = Timer.periodic(_pollInterval, (_) => _tick());
+  }
+
+  Future<void> _tick() async {
+    if (!mounted) return;
+    if (_polls >= _maxPolls) {
+      _poll?.cancel();
+      setState(() => _timedOut = true);
+      return;
+    }
+    _polls++;
+    try {
+      final updated = await widget.api.getIncident(_incident.id);
+      if (!mounted) return;
+      setState(() => _incident = updated);
+      if (!_isAnalyzing) {
+        _poll?.cancel();
+      }
+    } catch (_) {
+      // Transient error — keep polling until the safety cap.
+    }
+  }
 
   Future<void> _openInMaps() async {
-    final lat = incident.latitude;
-    final lng = incident.longitude;
+    final lat = _incident.latitude;
+    final lng = _incident.longitude;
     if (lat == null || lng == null) return;
     final uri = Uri.parse(
       'https://www.google.com/maps/search/?api=1&query=$lat,$lng',
@@ -27,26 +94,37 @@ class IncidentResultScreen extends StatelessWidget {
     final dateFmt = DateFormat.yMMMd().add_jm();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Report submitted'),
+        title: Text(_isRejected ? 'Report not accepted' : 'Report submitted'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          _buildSuccessHeader(),
+          if (_isRejected)
+            _buildRejectedHeader()
+          else
+            _buildSuccessHeader(),
           const SizedBox(height: 20),
-          _buildSummaryCard(dateFmt),
-          if (incident.aiDescription != null) ...[
-            const SizedBox(height: 16),
-            _buildDescriptionCard(),
-          ],
-          if (incident.userDescription != null &&
-              incident.userDescription!.trim().isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _buildCitizenNoteCard(),
-          ],
-          if (incident.latitude != null && incident.longitude != null) ...[
-            const SizedBox(height: 16),
-            _buildLocationCard(),
+          if (_isRejected) ...[
+            _buildRejectedHelp(),
+          ] else ...[
+            _buildSummaryCard(dateFmt),
+            if (_isAnalyzing) ...[
+              const SizedBox(height: 16),
+              _buildAnalyzingCard(),
+            ] else if (_incident.aiDescription != null) ...[
+              const SizedBox(height: 16),
+              _buildDescriptionCard(),
+            ],
+            if (_incident.userDescription != null &&
+                _incident.userDescription!.trim().isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _buildCitizenNoteCard(),
+            ],
+            if (_incident.latitude != null &&
+                _incident.longitude != null) ...[
+              const SizedBox(height: 16),
+              _buildLocationCard(),
+            ],
           ],
           const SizedBox(height: 28),
           _buildBackButton(context),
@@ -83,7 +161,7 @@ class IncidentResultScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Report #${incident.id} sent',
+                  'Report #${_incident.id} sent',
                   style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
@@ -107,6 +185,88 @@ class IncidentResultScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildRejectedHeader() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AiraColors.danger.withValues(alpha: 0.10),
+        border: Border.all(color: AiraColors.danger.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: AiraColors.danger,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.report_gmailerrorred,
+                color: Colors.white, size: 26),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Report not accepted',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: AiraColors.navy,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'The photo could not be confirmed as a reportable incident, '
+                  'so officers were not notified.',
+                  style: TextStyle(
+                    color: Colors.grey.shade700,
+                    fontSize: 12.5,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRejectedHelp() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'What to do',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: AiraColors.navy,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Please capture the accident, fire, or emergency scene clearly '
+              'and submit again. Make sure the incident itself is visible in '
+              'the photo.',
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.5,
+                color: Colors.grey.shade800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSummaryCard(DateFormat fmt) {
     return Card(
       child: Padding(
@@ -116,12 +276,12 @@ class IncidentResultScreen extends StatelessWidget {
           children: [
             Row(
               children: [
-                StatusChip(status: incident.status),
+                StatusChip(status: _incident.status),
                 const SizedBox(width: 8),
-                SeverityChip(severity: incident.severityLevel),
+                SeverityChip(severity: _incident.severityLevel),
                 const Spacer(),
                 Text(
-                  fmt.format(incident.createdAt),
+                  fmt.format(_incident.createdAt),
                   style: TextStyle(
                     color: Colors.grey.shade600,
                     fontSize: 12,
@@ -130,10 +290,55 @@ class IncidentResultScreen extends StatelessWidget {
               ],
             ),
             const Divider(height: 24),
-            _row(Icons.label_outline, 'Detected type', incident.typeLabel),
-            _row(Icons.fingerprint, 'Report ID', '#${incident.id}'),
+            _row(Icons.label_outline, 'Detected type', _incident.typeLabel),
+            _row(Icons.fingerprint, 'Report ID', '#${_incident.id}'),
             _row(Icons.calendar_today_outlined, 'Updated',
-                fmt.format(incident.updatedAt)),
+                fmt.format(_incident.updatedAt)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAnalyzingCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Analyzing your report…',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: AiraColors.navy,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _timedOut
+                        ? 'This is taking longer than usual. The AI summary will '
+                            'appear in your reports history once ready.'
+                        : 'The AI is reviewing your photo. The incident summary '
+                            'will appear here shortly.',
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
+                      fontSize: 12.5,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -162,7 +367,7 @@ class IncidentResultScreen extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              incident.aiDescription!,
+              _incident.aiDescription!,
               style: TextStyle(
                 fontSize: 14,
                 height: 1.5,
@@ -197,7 +402,7 @@ class IncidentResultScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              incident.userDescription!,
+              _incident.userDescription!,
               style: TextStyle(
                 fontSize: 14,
                 height: 1.5,
@@ -232,7 +437,7 @@ class IncidentResultScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '${incident.latitude!.toStringAsFixed(5)}, ${incident.longitude!.toStringAsFixed(5)}',
+              '${_incident.latitude!.toStringAsFixed(5)}, ${_incident.longitude!.toStringAsFixed(5)}',
               style: TextStyle(color: Colors.grey.shade800, fontSize: 13),
             ),
             const SizedBox(height: 12),
