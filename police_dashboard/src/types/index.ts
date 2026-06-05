@@ -130,3 +130,19 @@ export interface Notification {
   is_read: boolean;
   created_at: string;
 }
+
+export interface SpamReport {
+  id: number;
+  incident_id?: number;
+  reporter_id?: number;
+  reporter?: IncidentReporter;
+  image_url?: string;
+  incident_type?: string;
+  reason?: string;
+  ai_caption?: string;
+  ai_description?: string;
+  user_description?: string;
+  latitude?: number;
+  longitude?: number;
+  created_at: string;
+}

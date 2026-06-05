@@ -11,8 +11,10 @@ from app.ai.image_analyzer import get_analyzer
 from app.config import settings
 from app.models.ai_analysis import AIAnalysis
 from app.models.incident import Incident, IncidentStatus, SeverityLevel
+from app.models.spam_report import SpamReport
 from app.models.user import User, UserRole
 from app.realtime import broadcaster
+from app.services.file_service import quarantine_upload_file
 from app.services.notification_service import create_notification
 
 logger = logging.getLogger(__name__)
@@ -153,9 +155,27 @@ def analyze_incident_sync(db: Session, incident_id: int) -> str:
     # ---- Validation: reject non-incident photos ---------------------------
     if settings.INCIDENT_VALIDATION_ENABLED and not looks_like_incident(incident):
         incident.status = IncidentStatus.rejected
+        # Quarantine the image into uploads/spam/ (instead of deleting it) and
+        # keep a SpamReport record. This preserves an audit trail for abuse /
+        # repeat false reports and a recovery path if the AI was wrong.
+        spam_url = quarantine_upload_file(incident.image_url) or incident.image_url
+        db.add(SpamReport(
+            incident_id=incident.id,
+            reporter_id=incident.reporter_id,
+            image_url=spam_url,
+            incident_type=incident.incident_type,
+            reason="non_incident",
+            ai_caption=result.caption,
+            ai_description=incident.ai_description,
+            user_description=incident.user_description,
+            latitude=incident.latitude,
+            longitude=incident.longitude,
+        ))
+        # Point the (possibly retained) incident row at the moved file so it
+        # stays viewable; the sync path deletes the row anyway.
+        incident.image_url = spam_url
         db.commit()
-        delete_upload_file(incident.image_url)
-        logger.info("Incident %s rejected as non-incident (type=%s)",
+        logger.info("Incident %s rejected as non-incident (type=%s) -> spam",
                     incident_id, incident.incident_type)
         return "rejected"
 

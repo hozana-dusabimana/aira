@@ -231,7 +231,11 @@ def list_incidents(
         .offset(offset)
     )
     if current_user.role == UserRole.citizen:
+        # Reporters still see their own rejected reports in their history.
         stmt = stmt.where(Incident.reporter_id == current_user.id)
+    elif status_filter is None:
+        # Staff incidents view hides spam (rejected) — it lives on the Spam page.
+        stmt = stmt.where(Incident.status != IncidentStatus.rejected)
     if status_filter:
         stmt = stmt.where(Incident.status == status_filter)
     if incident_type:

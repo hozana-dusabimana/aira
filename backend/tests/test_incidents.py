@@ -77,9 +77,128 @@ def test_rejects_non_incident_image(client, citizen_token, auth_header, monkeypa
         data={"severity_level": "low"},
     )
     assert r.status_code == 422, r.text
-    # The rejected report must not be persisted.
+    # The rejected report must not be persisted as a visible incident.
     listed = client.get("/api/v1/incidents/", headers=auth_header(citizen_token)).json()
     assert listed == []
+
+
+def test_rejected_image_is_quarantined_as_spam(
+    client, citizen_token, auth_header, monkeypatch, TestingSessionLocal
+):
+    """A rejected (non-incident) upload is recorded in the spam table and its
+    image is moved into uploads/spam/ rather than deleted."""
+    from pathlib import Path
+
+    from app.ai.image_analyzer import AnalysisResult
+    from app.config import settings
+    from app.models.spam_report import SpamReport
+    from app.services import ai_service
+
+    class _FakeAnalyzer:
+        model_version = "fake-1.0"
+
+        def analyze(self, _image_bytes):
+            return AnalysisResult(
+                caption="A person sitting at a desk in an office.",
+                scene_label="office",
+                detected_objects=[{"label": "person", "confidence": 0.9}],
+                confidence_score=0.9,
+                incident_type="general",
+                severity_level="low",
+                scenario="people_only",
+                model_version="fake-1.0",
+            )
+
+    monkeypatch.setattr(ai_service, "get_analyzer", lambda: _FakeAnalyzer())
+
+    r = client.post(
+        "/api/v1/incidents/",
+        headers=auth_header(citizen_token),
+        files={"image": ("office.jpg", make_test_image_bytes(), "image/jpeg")},
+        data={"severity_level": "low"},
+    )
+    assert r.status_code == 422, r.text
+
+    db = TestingSessionLocal()
+    try:
+        spam = db.query(SpamReport).all()
+        assert len(spam) == 1
+        record = spam[0]
+        assert record.reason == "non_incident"
+        assert record.incident_type == "general"
+        assert record.ai_caption
+        assert record.image_url.startswith("/uploads/spam/")
+    finally:
+        db.close()
+
+    # The image file was moved into the spam folder, not deleted.
+    spam_name = Path(record.image_url).name
+    spam_path = Path(settings.UPLOAD_DIR).resolve() / "spam" / spam_name
+    assert spam_path.exists()
+
+
+def _reject_one(client, citizen_token, auth_header, monkeypatch):
+    """Submit a non-incident image so it lands in the spam store."""
+    from app.ai.image_analyzer import AnalysisResult
+    from app.services import ai_service
+
+    class _FakeAnalyzer:
+        model_version = "fake-1.0"
+
+        def analyze(self, _image_bytes):
+            return AnalysisResult(
+                caption="A person sitting at a desk in an office.",
+                scene_label="office",
+                detected_objects=[{"label": "person", "confidence": 0.9}],
+                confidence_score=0.9,
+                incident_type="general",
+                severity_level="low",
+                scenario="people_only",
+                model_version="fake-1.0",
+            )
+
+    monkeypatch.setattr(ai_service, "get_analyzer", lambda: _FakeAnalyzer())
+    return client.post(
+        "/api/v1/incidents/",
+        headers=auth_header(citizen_token),
+        files={"image": ("office.jpg", make_test_image_bytes(), "image/jpeg")},
+        data={"severity_level": "low"},
+    )
+
+
+def test_spam_page_lists_and_hides_from_incidents(
+    client, citizen_token, officer_token, auth_header, monkeypatch
+):
+    """Rejected reports appear on the Spam list but not the officer incidents list."""
+    assert _reject_one(client, citizen_token, auth_header, monkeypatch).status_code == 422
+
+    spam = client.get("/api/v1/spam/", headers=auth_header(officer_token)).json()
+    assert len(spam) == 1
+    assert spam[0]["reason"] == "non_incident"
+
+    # Officer incidents list must not include the rejected/spam report.
+    incidents = client.get("/api/v1/incidents/", headers=auth_header(officer_token)).json()
+    assert incidents == []
+
+
+def test_mark_not_spam_restores_incident(
+    client, citizen_token, officer_token, auth_header, monkeypatch
+):
+    """Marking a spam report 'not spam' recreates it as a verified incident."""
+    assert _reject_one(client, citizen_token, auth_header, monkeypatch).status_code == 422
+
+    spam = client.get("/api/v1/spam/", headers=auth_header(officer_token)).json()
+    spam_id = spam[0]["id"]
+
+    r = client.post(f"/api/v1/spam/{spam_id}/not-spam", headers=auth_header(officer_token))
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "verified"
+
+    # Now it shows up for officers and the spam list is empty.
+    incidents = client.get("/api/v1/incidents/", headers=auth_header(officer_token)).json()
+    assert len(incidents) == 1
+    assert incidents[0]["status"] == "verified"
+    assert client.get("/api/v1/spam/", headers=auth_header(officer_token)).json() == []
 
 
 def test_citizen_only_sees_own_incidents(client, citizen_token, auth_header):

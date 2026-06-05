@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import MapView from './pages/MapView';
 import Officers from './pages/Officers';
 import Settings from './pages/Settings';
+import Spam from './pages/Spam';
 import SystemStatusPage from './pages/SystemStatus';
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/incidents" element={<IncidentsList />} />
         <Route path="/incidents/:id" element={<IncidentDetails />} />
+        <Route path="/spam" element={<Spam />} />
         <Route path="/map" element={<MapView />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/officers" element={<Officers />} />
