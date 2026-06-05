@@ -5,6 +5,12 @@ from pydantic import BaseModel, ConfigDict
 from app.schemas.incident import ReporterOut
 
 
+class BackfillResult(BaseModel):
+    """Result of a one-time backfill of existing rejected reports into spam."""
+    created: int
+    total_rejected: int
+
+
 class SpamOut(BaseModel):
     """A quarantined (rejected) report shown on the dashboard Spam page."""
     model_config = ConfigDict(from_attributes=True)

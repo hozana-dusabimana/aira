@@ -106,6 +106,10 @@ export const spam = {
   notSpam: (id: number) =>
     api.post<Incident>(`/spam/${id}/not-spam`).then((r) => r.data),
   remove: (id: number) => api.delete(`/spam/${id}`).then((r) => r.data),
+  backfill: () =>
+    api
+      .post<{ created: number; total_rejected: number }>('/spam/backfill')
+      .then((r) => r.data),
 };
 
 // --- Officers / Stations -------------------------------------

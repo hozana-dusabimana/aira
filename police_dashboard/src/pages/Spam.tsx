@@ -11,6 +11,7 @@ export default function Spam() {
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -18,6 +19,21 @@ export default function Spam() {
       setList(await spamApi.list({ limit: 100 }));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function importPast() {
+    setImporting(true);
+    try {
+      const res = await spamApi.backfill();
+      await load();
+      window.alert(
+        res.created > 0
+          ? `Imported ${res.created} past rejected report(s).`
+          : `Nothing to import — all ${res.total_rejected} rejected report(s) are already here.`,
+      );
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -60,7 +76,16 @@ export default function Spam() {
             Photos the AI did not recognise as a reportable incident. They are hidden from the
             Incidents page. Use “Not spam” to restore a genuine incident.
           </span>
-          <button className="ghost" style={{ marginLeft: 'auto' }} onClick={load} disabled={loading}>
+          <button
+            className="ghost"
+            style={{ marginLeft: 'auto' }}
+            onClick={importPast}
+            disabled={importing}
+            title="Import reports that were rejected before the Spam page existed"
+          >
+            {importing ? 'Importing...' : 'Import past rejections'}
+          </button>
+          <button className="ghost" onClick={load} disabled={loading}>
             {loading ? 'Loading...' : 'Refresh'}
           </button>
         </div>

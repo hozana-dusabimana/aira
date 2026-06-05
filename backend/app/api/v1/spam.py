@@ -13,7 +13,7 @@ from app.models.spam_report import SpamReport
 from app.models.user import User
 from app.schemas.auth import MessageResponse
 from app.schemas.incident import IncidentOut
-from app.schemas.spam import SpamOut
+from app.schemas.spam import BackfillResult, SpamOut
 from app.services.ai_service import (
     delete_upload_file,
     emit_incident_event,
@@ -43,6 +43,48 @@ def list_spam(
         .offset(offset)
     )
     return list(db.scalars(stmt).all())
+
+
+@router.post("/backfill", response_model=BackfillResult)
+def backfill_spam(
+    _: Annotated[User, Depends(require_officer)],
+    db: Annotated[Session, Depends(get_db)],
+) -> BackfillResult:
+    """One-time, idempotent import of pre-existing rejected reports into spam.
+
+    Reports rejected before the spam store existed live only as incidents with
+    status ``rejected`` (now hidden from the Incidents page). This creates a
+    SpamReport for each such incident that doesn't already have one, so they
+    surface on the Spam page. Linked by ``incident_id`` so "Not spam" restores
+    the original. Safe to run repeatedly — already-imported rows are skipped.
+    """
+    already = set(
+        db.scalars(
+            select(SpamReport.incident_id).where(SpamReport.incident_id.is_not(None))
+        ).all()
+    )
+    rejected = list(
+        db.scalars(select(Incident).where(Incident.status == IncidentStatus.rejected)).all()
+    )
+    created = 0
+    for inc in rejected:
+        if inc.id in already:
+            continue
+        db.add(SpamReport(
+            incident_id=inc.id,
+            reporter_id=inc.reporter_id,
+            image_url=inc.image_url,
+            incident_type=inc.incident_type,
+            reason="non_incident",
+            ai_description=inc.ai_description,
+            user_description=inc.user_description,
+            latitude=inc.latitude,
+            longitude=inc.longitude,
+        ))
+        created += 1
+    db.commit()
+    logger.info("Spam backfill: created %s of %s rejected incidents", created, len(rejected))
+    return BackfillResult(created=created, total_rejected=len(rejected))
 
 
 @router.post("/{spam_id}/not-spam", response_model=IncidentOut)

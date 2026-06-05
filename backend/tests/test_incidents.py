@@ -201,6 +201,48 @@ def test_mark_not_spam_restores_incident(
     assert client.get("/api/v1/spam/", headers=auth_header(officer_token)).json() == []
 
 
+def test_backfill_imports_legacy_rejected_incidents(
+    client, citizen_token, officer_token, auth_header, TestingSessionLocal
+):
+    """A pre-existing rejected incident (no spam record) is imported by backfill."""
+    from app.models import Incident, SpamReport, User
+    from app.models.incident import IncidentStatus, SeverityLevel
+
+    db = TestingSessionLocal()
+    try:
+        citizen = db.query(User).filter(User.email == "citizen@aira.example.com").first()
+        legacy = Incident(
+            reporter_id=citizen.id,
+            image_url="/uploads/legacy.jpg",
+            ai_description="A person at a desk.",
+            incident_type="general",
+            severity_level=SeverityLevel.low,
+            status=IncidentStatus.rejected,
+        )
+        db.add(legacy)
+        db.commit()
+        legacy_id = legacy.id
+        assert db.query(SpamReport).count() == 0
+    finally:
+        db.close()
+
+    # The legacy rejected incident is hidden from the officer incidents list...
+    assert client.get("/api/v1/incidents/", headers=auth_header(officer_token)).json() == []
+    # ...until backfill surfaces it on the Spam page.
+    r = client.post("/api/v1/spam/backfill", headers=auth_header(officer_token))
+    assert r.status_code == 200, r.text
+    assert r.json() == {"created": 1, "total_rejected": 1}
+
+    spam = client.get("/api/v1/spam/", headers=auth_header(officer_token)).json()
+    assert len(spam) == 1
+    assert spam[0]["incident_id"] == legacy_id
+    assert spam[0]["ai_description"] == "A person at a desk."
+
+    # Idempotent: a second run imports nothing.
+    r2 = client.post("/api/v1/spam/backfill", headers=auth_header(officer_token))
+    assert r2.json() == {"created": 0, "total_rejected": 1}
+
+
 def test_citizen_only_sees_own_incidents(client, citizen_token, auth_header):
     _submit_incident(client, citizen_token)
     r = client.get("/api/v1/incidents/", headers=auth_header(citizen_token))
