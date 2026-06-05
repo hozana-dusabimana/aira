@@ -12,6 +12,15 @@ export default function Spam() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+
+  const toggleExpanded = (id: number) =>
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   async function load() {
     setLoading(true);
@@ -116,7 +125,11 @@ export default function Spam() {
                 </td>
                 <td>{incidentTypeLabel(s.incident_type)}</td>
                 <td style={{ maxWidth: 320, color: 'var(--muted)', fontSize: 13 }}>
-                  {s.ai_caption ?? s.ai_description ?? '—'}
+                  <AiCaption
+                    text={s.ai_caption ?? s.ai_description ?? '—'}
+                    expanded={expanded.has(s.id)}
+                    onToggle={() => toggleExpanded(s.id)}
+                  />
                 </td>
                 <td>{s.reporter?.full_name ?? (s.reporter_id ? `#${s.reporter_id}` : '—')}</td>
                 <td>{new Date(s.created_at).toLocaleString()}</td>
@@ -168,5 +181,39 @@ export default function Spam() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Trim a caption to its first two sentences (with a hard character cap). */
+function summarize(text: string, maxSentences = 2, maxChars = 200): { short: string; truncated: boolean } {
+  const trimmed = text.trim();
+  const sentences = trimmed.match(/[^.!?]+[.!?]+/g);
+  let short = trimmed;
+  if (sentences && sentences.length > maxSentences) {
+    short = sentences.slice(0, maxSentences).join(' ').replace(/\s+/g, ' ').trim();
+  }
+  if (short.length > maxChars) {
+    short = `${short.slice(0, maxChars).trimEnd()}…`;
+  }
+  return { short, truncated: short.length < trimmed.length };
+}
+
+function AiCaption({ text, expanded, onToggle }: { text: string; expanded: boolean; onToggle: () => void }) {
+  const { short, truncated } = summarize(text);
+  if (!truncated) return <>{text}</>;
+  return (
+    <>
+      {expanded ? text : short}{' '}
+      <button
+        type="button"
+        onClick={onToggle}
+        style={{
+          background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+          color: 'var(--primary, #4f8cff)', fontSize: 13, fontWeight: 600,
+        }}
+      >
+        {expanded ? 'View less' : 'View more'}
+      </button>
+    </>
   );
 }
