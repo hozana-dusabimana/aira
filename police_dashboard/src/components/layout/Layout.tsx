@@ -9,6 +9,7 @@ import UserMenu from './UserMenu';
 const PAGE_TITLES: Record<string, string> = {
   '/': 'Dashboard',
   '/incidents': 'Incidents',
+  '/spam': 'Spam',
   '/map': 'Live operations map',
   '/analytics': 'Analytics',
   '/officers': 'Officers',
@@ -55,6 +56,9 @@ export default function Layout() {
           </NavLink>
           <NavLink to="/incidents">
             <span className="nav-icon" aria-hidden>🚨</span> Incidents
+          </NavLink>
+          <NavLink to="/spam">
+            <span className="nav-icon" aria-hidden>🛑</span> Spam
           </NavLink>
           <NavLink to="/map">
             <span className="nav-icon" aria-hidden>🗺️</span> Live Map

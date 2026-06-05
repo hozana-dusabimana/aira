@@ -8,6 +8,7 @@ import type {
   Notification,
   Officer,
   OverviewMetrics,
+  SpamReport,
   Station,
   TimelinePoint,
   User,
@@ -98,6 +99,15 @@ export const incidents = {
     api.post<IncidentMessage>(`/incidents/${id}/messages`, { message }).then((r) => r.data),
 };
 
+// --- Spam (rejected reports) ---------------------------------
+export const spam = {
+  list: (params?: { limit?: number; offset?: number }) =>
+    api.get<SpamReport[]>('/spam/', { params }).then((r) => r.data),
+  notSpam: (id: number) =>
+    api.post<Incident>(`/spam/${id}/not-spam`).then((r) => r.data),
+  remove: (id: number) => api.delete(`/spam/${id}`).then((r) => r.data),
+};
+
 // --- Officers / Stations -------------------------------------
 export const officers = {
   list: () => api.get<Officer[]>('/officers/').then((r) => r.data),
@@ -129,6 +139,9 @@ export const notifications = {
 
 // --- System health -------------------------------------------
 const ROOT_URL = API_BASE_URL.replace(/\/api\/v1\/?$/, '') || '';
+
+/** Resolve a server-relative upload path (e.g. /uploads/...) to a full URL. */
+export const mediaUrl = (path?: string): string => (path ? `${ROOT_URL}${path}` : '');
 
 export type ComponentStatus = 'ok' | 'degraded' | 'down' | 'unknown';
 

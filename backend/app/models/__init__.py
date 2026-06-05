@@ -9,6 +9,7 @@ from app.models.notification import Notification
 from app.models.feedback_message import FeedbackMessage
 from app.models.device_token import DeviceToken
 from app.models.password_reset_code import PasswordResetCode
+from app.models.spam_report import SpamReport
 
 __all__ = [
     "User",
@@ -25,4 +26,5 @@ __all__ = [
     "FeedbackMessage",
     "DeviceToken",
     "PasswordResetCode",
+    "SpamReport",
 ]

@@ -6,8 +6,9 @@ import { realtime } from '../services/realtime';
 import type { Incident, IncidentStatus } from '../types';
 import { incidentTypeLabel } from '../utils/incident';
 
+// 'rejected' reports are spam and live on the dedicated Spam page, not here.
 const STATUSES: (IncidentStatus | '')[] = [
-  '', 'pending', 'analyzing', 'verified', 'assigned', 'in_progress', 'resolved', 'rejected',
+  '', 'pending', 'analyzing', 'verified', 'assigned', 'in_progress', 'resolved',
 ];
 
 export default function IncidentsList() {
