@@ -65,7 +65,7 @@ export default function Spam() {
   }
 
   async function remove(id: number) {
-    if (!window.confirm('Permanently delete this spam report and its image? This cannot be undone.')) {
+    if (!window.confirm('Permanently delete this flagged report and its image? This cannot be undone.')) {
       return;
     }
     setBusyId(id);
@@ -81,18 +81,18 @@ export default function Spam() {
     <div>
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <strong>Spam / rejected reports</strong>
+          <strong>Flagged reports</strong>
           <span style={{ color: 'var(--muted)', fontSize: 13 }}>
             Duplicate reports of an accident already reported nearby (plus any older rejected
             reports you import). Photos the AI does not recognise as an incident are now discarded
-            on upload and never stored. Use “Not spam” to restore a genuine, separate incident.
+            on upload and never stored. Use “Restore” to recover a genuine, separate incident.
           </span>
           <button
             className="ghost"
             style={{ marginLeft: 'auto' }}
             onClick={importPast}
             disabled={importing}
-            title="Import reports that were rejected before the Spam page existed"
+            title="Import reports that were rejected before the Flagged Reports page existed"
           >
             {importing ? 'Importing...' : 'Import past rejections'}
           </button>
@@ -142,7 +142,7 @@ export default function Spam() {
                     onClick={() => markNotSpam(s.id)}
                     disabled={busyId === s.id}
                   >
-                    Not spam
+                    Restore
                   </button>
                   {isAdmin && (
                     <button
@@ -160,7 +160,7 @@ export default function Spam() {
             {list.length === 0 && (
               <tr>
                 <td colSpan={7} style={{ color: 'var(--muted)' }}>
-                  {loading ? 'Loading...' : 'No spam reports.'}
+                  {loading ? 'Loading...' : 'No flagged reports.'}
                 </td>
               </tr>
             )}
