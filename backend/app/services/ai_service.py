@@ -171,9 +171,9 @@ def analyze_incident_sync(db: Session, incident_id: int) -> str:
     * ``"analyzed"`` — a real incident; status set to ``verified``, the AI
       analysis persisted, the reporter + officers notified and an
       ``incident.analyzed`` / ``incident.created`` event broadcast.
-    * ``"rejected"`` — the photo does not look like a reportable incident;
-      status set to ``rejected`` and the upload quarantined to spam. The caller
-      decides whether to keep the row (async) or delete it (sync 422).
+    * ``"rejected"`` — the photo does not look like a reportable incident; the
+      uploaded file is deleted and the caller removes the incident row so no
+      trace is kept (sync raises 422, async deletes + notifies). No spam record.
     * ``"duplicate"`` — a real incident, but the same accident was already
       reported nearby; status set to ``rejected`` and the report quarantined to
       spam (reason="duplicate") linked to the original. The caller keeps the row
@@ -209,29 +209,14 @@ def analyze_incident_sync(db: Session, incident_id: int) -> str:
         pass
 
     # ---- Validation: reject non-incident photos ---------------------------
+    # A photo the AI does not recognise as a reportable incident (a selfie, a
+    # random object, …) is discarded outright: the uploaded file is deleted and
+    # the caller removes the incident row, so NOTHING is stored — no incident,
+    # no spam record. This stops abusers from filling the database with junk.
     if settings.INCIDENT_VALIDATION_ENABLED and not looks_like_incident(incident):
         incident.status = IncidentStatus.rejected
-        # Quarantine the image into uploads/spam/ (instead of deleting it) and
-        # keep a SpamReport record. This preserves an audit trail for abuse /
-        # repeat false reports and a recovery path if the AI was wrong.
-        spam_url = quarantine_upload_file(incident.image_url) or incident.image_url
-        db.add(SpamReport(
-            incident_id=incident.id,
-            reporter_id=incident.reporter_id,
-            image_url=spam_url,
-            incident_type=incident.incident_type,
-            reason="non_incident",
-            ai_caption=result.caption,
-            ai_description=incident.ai_description,
-            user_description=incident.user_description,
-            latitude=incident.latitude,
-            longitude=incident.longitude,
-        ))
-        # Point the (possibly retained) incident row at the moved file so it
-        # stays viewable; the sync path deletes the row anyway.
-        incident.image_url = spam_url
-        db.commit()
-        logger.info("Incident %s rejected as non-incident (type=%s) -> spam",
+        delete_upload_file(incident.image_url)
+        logger.info("Incident %s rejected as non-incident (type=%s) -> discarded",
                     incident_id, incident.incident_type)
         return "rejected"
 

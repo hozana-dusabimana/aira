@@ -83,9 +83,9 @@ export default function Spam() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <strong>Spam / rejected reports</strong>
           <span style={{ color: 'var(--muted)', fontSize: 13 }}>
-            Photos the AI did not recognise as a reportable incident, plus duplicate reports of an
-            accident that was already reported nearby. They are hidden from the Incidents page. Use
-            “Not spam” to restore a genuine, separate incident.
+            Duplicate reports of an accident already reported nearby (plus any older rejected
+            reports you import). Photos the AI does not recognise as an incident are now discarded
+            on upload and never stored. Use “Not spam” to restore a genuine, separate incident.
           </span>
           <button
             className="ghost"

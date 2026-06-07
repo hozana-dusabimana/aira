@@ -210,6 +210,8 @@ def _run_async_analysis(incident_id: int) -> None:
             if outcome == "rejected":
                 incident = db.get(Incident, incident_id)
                 if incident is not None:
+                    # Notify the reporter and push the realtime event, then
+                    # discard the report entirely — no incident row is kept.
                     create_notification(
                         db,
                         user_id=incident.reporter_id,
@@ -219,9 +221,11 @@ def _run_async_analysis(incident_id: int) -> None:
                             "reportable incident."
                         ),
                         type="report_rejected",
-                        related_incident_id=incident.id,
+                        related_incident_id=None,
                     )
                     emit_incident_event(incident, "incident.rejected")
+                    db.delete(incident)
+                    db.commit()
             elif outcome == "duplicate":
                 incident = db.get(Incident, incident_id)
                 if incident is not None:
