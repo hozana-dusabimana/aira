@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -31,6 +32,9 @@ class _IncidentResultScreenState extends State<IncidentResultScreen> {
   Timer? _poll;
   int _polls = 0;
   bool _timedOut = false;
+  // Set when polling gets a 404: the backend discarded the report as a
+  // non-incident (the row is deleted), so we surface it as "not accepted".
+  bool _discarded = false;
 
   @override
   void initState() {
@@ -50,7 +54,7 @@ class _IncidentResultScreenState extends State<IncidentResultScreen> {
   bool get _isAnalyzing =>
       _incident.status == 'analyzing' || _incident.status == 'pending';
 
-  bool get _isRejected => _incident.status == 'rejected';
+  bool get _isRejected => _incident.status == 'rejected' || _discarded;
 
   void _startPolling() {
     _poll?.cancel();
@@ -72,6 +76,15 @@ class _IncidentResultScreenState extends State<IncidentResultScreen> {
       if (!_isAnalyzing) {
         _poll?.cancel();
       }
+    } on DioException catch (e) {
+      // A 404 means the backend discarded the report as a non-incident (the
+      // row is deleted). Surface the rejection instead of polling to timeout.
+      if (e.response?.statusCode == 404) {
+        _poll?.cancel();
+        if (!mounted) return;
+        setState(() => _discarded = true);
+      }
+      // Other errors are transient — keep polling until the safety cap.
     } catch (_) {
       // Transient error — keep polling until the safety cap.
     }
