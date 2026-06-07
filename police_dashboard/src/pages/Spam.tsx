@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { mediaUrl, spam as spamApi } from '../services/api';
 import type { SpamReport } from '../types';
@@ -82,8 +83,9 @@ export default function Spam() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <strong>Spam / rejected reports</strong>
           <span style={{ color: 'var(--muted)', fontSize: 13 }}>
-            Photos the AI did not recognise as a reportable incident. They are hidden from the
-            Incidents page. Use “Not spam” to restore a genuine incident.
+            Photos the AI did not recognise as a reportable incident, plus duplicate reports of an
+            accident that was already reported nearby. They are hidden from the Incidents page. Use
+            “Not spam” to restore a genuine, separate incident.
           </span>
           <button
             className="ghost"
@@ -104,7 +106,7 @@ export default function Spam() {
         <table className="table">
           <thead>
             <tr>
-              <th>Image</th><th>Detected type</th><th>AI caption</th>
+              <th>Image</th><th>Detected type</th><th>Reason</th><th>AI caption</th>
               <th>Reporter</th><th>Created</th><th style={{ textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
@@ -124,6 +126,7 @@ export default function Spam() {
                   )}
                 </td>
                 <td>{incidentTypeLabel(s.incident_type)}</td>
+                <td><ReasonBadge reason={s.reason} duplicateOf={s.duplicate_of_incident_id} /></td>
                 <td style={{ maxWidth: 320, color: 'var(--muted)', fontSize: 13 }}>
                   <AiCaption
                     text={s.ai_caption ?? s.ai_description ?? '—'}
@@ -156,7 +159,7 @@ export default function Spam() {
             ))}
             {list.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ color: 'var(--muted)' }}>
+                <td colSpan={7} style={{ color: 'var(--muted)' }}>
                   {loading ? 'Loading...' : 'No spam reports.'}
                 </td>
               </tr>
@@ -181,6 +184,34 @@ export default function Spam() {
         </div>
       )}
     </div>
+  );
+}
+
+/** Coloured pill describing why a report was quarantined. Duplicates link to the original incident. */
+function ReasonBadge({ reason, duplicateOf }: { reason?: string; duplicateOf?: number }) {
+  const isDuplicate = reason === 'duplicate';
+  const label = isDuplicate ? 'Duplicate' : 'Non-incident';
+  const color = isDuplicate ? '#b26b00' : '#9aa0a6';
+  return (
+    <span style={{ whiteSpace: 'nowrap' }}>
+      <span
+        style={{
+          display: 'inline-block', padding: '2px 8px', borderRadius: 999,
+          fontSize: 12, fontWeight: 600, color, border: `1px solid ${color}`,
+        }}
+      >
+        {label}
+      </span>
+      {isDuplicate && duplicateOf != null && (
+        <Link
+          to={`/incidents/${duplicateOf}`}
+          style={{ marginLeft: 6, fontSize: 12, color: 'var(--primary, #4f8cff)' }}
+          title="View the original report this duplicates"
+        >
+          of #{duplicateOf}
+        </Link>
+      )}
+    </span>
   );
 }
 

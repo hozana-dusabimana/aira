@@ -159,6 +159,18 @@ def submit_incident(
                     "Please capture the accident, fire or emergency scene and try again."
                 ),
             )
+        if outcome == "duplicate":
+            # Same accident already reported nearby. The duplicate is kept in the
+            # spam store (linked to the original); we don't file a second incident.
+            db.delete(incident)
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "This accident appears to have already been reported. "
+                    "Officers are aware — thank you for reporting."
+                ),
+            )
     else:
         # Async: return immediately with status=analyzing and run the analysis
         # in a background task *in this process* (so the in-process realtime
@@ -207,6 +219,21 @@ def _run_async_analysis(incident_id: int) -> None:
                             "reportable incident."
                         ),
                         type="report_rejected",
+                        related_incident_id=incident.id,
+                    )
+                    emit_incident_event(incident, "incident.rejected")
+            elif outcome == "duplicate":
+                incident = db.get(Incident, incident_id)
+                if incident is not None:
+                    create_notification(
+                        db,
+                        user_id=incident.reporter_id,
+                        title="This incident was already reported",
+                        message=(
+                            "Thank you! Someone already reported this incident nearby, "
+                            "so officers are already aware of it."
+                        ),
+                        type="report_duplicate",
                         related_incident_id=incident.id,
                     )
                     emit_incident_event(incident, "incident.rejected")

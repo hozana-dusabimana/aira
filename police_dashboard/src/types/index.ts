@@ -139,6 +139,7 @@ export interface SpamReport {
   image_url?: string;
   incident_type?: string;
   reason?: string;
+  duplicate_of_incident_id?: number;
   ai_caption?: string;
   ai_description?: string;
   user_description?: string;

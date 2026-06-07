@@ -21,6 +21,7 @@ class SpamOut(BaseModel):
     image_url: str | None = None
     incident_type: str | None = None
     reason: str | None = None
+    duplicate_of_incident_id: int | None = None
     ai_caption: str | None = None
     ai_description: str | None = None
     user_description: str | None = None

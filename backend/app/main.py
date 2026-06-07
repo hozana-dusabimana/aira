@@ -41,6 +41,9 @@ def _run_lightweight_migrations() -> None:
         "ALTER TABLE users MODIFY email VARCHAR(190) NULL",
         # Phone becomes a unique login identifier.
         "ALTER TABLE users ADD UNIQUE INDEX uq_users_phone (phone)",
+        # Link duplicate reports to the original incident they duplicate.
+        "ALTER TABLE spam_reports ADD COLUMN duplicate_of_incident_id INT NULL",
+        "ALTER TABLE spam_reports ADD INDEX ix_spam_reports_duplicate_of_incident_id (duplicate_of_incident_id)",
     ]
     for stmt in statements:
         try:

@@ -243,6 +243,42 @@ def test_backfill_imports_legacy_rejected_incidents(
     assert r2.json() == {"created": 0, "total_rejected": 1}
 
 
+def test_duplicate_report_is_quarantined_as_spam(
+    client, citizen_token, officer_token, auth_header, TestingSessionLocal
+):
+    """A second report of the same accident (same type, same place, same window)
+    is not filed as a new incident — it is quarantined to spam and linked to the
+    original."""
+    first = _submit_incident(client, citizen_token, latitude=-1.95, longitude=30.06)
+    assert first.status_code == 201, first.text
+    original_id = first.json()["id"]
+
+    # A second photo of the same scene a few metres away.
+    second = _submit_incident(client, citizen_token, latitude=-1.9501, longitude=30.0601)
+    assert second.status_code == 409, second.text
+
+    # Only the original incident is visible to officers.
+    incidents = client.get("/api/v1/incidents/", headers=auth_header(officer_token)).json()
+    assert [i["id"] for i in incidents] == [original_id]
+
+    # The duplicate is on the Spam page, linked to the original.
+    spam = client.get("/api/v1/spam/", headers=auth_header(officer_token)).json()
+    assert len(spam) == 1
+    assert spam[0]["reason"] == "duplicate"
+    assert spam[0]["duplicate_of_incident_id"] == original_id
+
+
+def test_distant_report_is_not_a_duplicate(client, citizen_token, officer_token, auth_header):
+    """A report of the same type far away is its own incident, not a duplicate."""
+    assert _submit_incident(client, citizen_token, latitude=-1.95, longitude=30.06).status_code == 201
+    # ~22 km away (well beyond the duplicate radius).
+    assert _submit_incident(client, citizen_token, latitude=-2.15, longitude=30.06).status_code == 201
+
+    incidents = client.get("/api/v1/incidents/", headers=auth_header(officer_token)).json()
+    assert len(incidents) == 2
+    assert client.get("/api/v1/spam/", headers=auth_header(officer_token)).json() == []
+
+
 def test_citizen_only_sees_own_incidents(client, citizen_token, auth_header):
     _submit_incident(client, citizen_token)
     r = client.get("/api/v1/incidents/", headers=auth_header(citizen_token))

@@ -1,18 +1,19 @@
 from tests.conftest import make_test_image_bytes
 
 
-def _submit(client, token):
+def _submit(client, token, latitude=-1.95, longitude=30.06):
     return client.post(
         "/api/v1/incidents/",
         headers={"Authorization": f"Bearer {token}"},
         files={"image": ("t.jpg", make_test_image_bytes(), "image/jpeg")},
-        data={"latitude": -1.95, "longitude": 30.06, "severity_level": "high"},
+        data={"latitude": latitude, "longitude": longitude, "severity_level": "high"},
     )
 
 
 def test_overview_metrics(client, citizen_token, officer_token, auth_header):
-    _submit(client, citizen_token)
-    _submit(client, citizen_token)
+    # Two distinct incidents (far apart) so neither is treated as a duplicate.
+    _submit(client, citizen_token, latitude=-1.95, longitude=30.06)
+    _submit(client, citizen_token, latitude=-2.20, longitude=30.20)
     r = client.get("/api/v1/analytics/overview", headers=auth_header(officer_token))
     assert r.status_code == 200, r.text
     data = r.json()

@@ -38,6 +38,18 @@ class Settings(BaseSettings):
     # non-incident photos. Set false to accept every upload.
     INCIDENT_VALIDATION_ENABLED: bool = True
 
+    # --- Duplicate detection ------------------------------------------
+    # When several people photograph the SAME accident, only the first report
+    # becomes an active incident. A later report of the same incident_type
+    # within DUPLICATE_RADIUS_METERS and DUPLICATE_WINDOW_MINUTES of an existing
+    # one is treated as a duplicate: it is quarantined to the Spam page
+    # (reason="duplicate") and linked to the original, so officers see a single
+    # incident instead of many. Set DUPLICATE_DETECTION_ENABLED=false to keep
+    # every report as its own incident.
+    DUPLICATE_DETECTION_ENABLED: bool = True
+    DUPLICATE_RADIUS_METERS: float = 150.0
+    DUPLICATE_WINDOW_MINUTES: int = 180
+
     # --- Rate limiting -------------------------------------------------
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_USE_REDIS: bool = False

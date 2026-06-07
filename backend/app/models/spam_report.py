@@ -31,6 +31,10 @@ class SpamReport(Base):
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     incident_type: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
     reason: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # When reason == "duplicate", the id of the existing incident this report
+    # duplicates (the first report of the same accident). Plain integer, no FK:
+    # mirrors ``incident_id`` and survives the original being deleted.
+    duplicate_of_incident_id: Mapped[int | None] = mapped_column(nullable=True, index=True)
     ai_caption: Mapped[str | None] = mapped_column(Text, nullable=True)
     ai_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     user_description: Mapped[str | None] = mapped_column(Text, nullable=True)

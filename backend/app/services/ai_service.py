@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
+from math import asin, cos, radians, sin, sqrt
 from pathlib import Path
 
 from sqlalchemy import select
@@ -27,6 +29,56 @@ _NON_INCIDENT_TYPES = {"", "general"}
 
 def looks_like_incident(incident: Incident) -> bool:
     return (incident.incident_type or "").strip().lower() not in _NON_INCIDENT_TYPES
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    R = 6371.0
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
+    return 2 * R * asin(sqrt(a))
+
+
+def find_duplicate_incident(db: Session, incident: Incident) -> Incident | None:
+    """Return an existing incident this one appears to duplicate, else ``None``.
+
+    Several people often photograph the same accident and each submits a report.
+    A new report is considered a duplicate of an earlier one when they share the
+    same ``incident_type`` and the earlier one was created within
+    ``DUPLICATE_WINDOW_MINUTES`` and ``DUPLICATE_RADIUS_METERS`` of the new one.
+    Rejected (spam) incidents are never treated as the original. The earliest
+    matching incident is returned so duplicates always point at the first report.
+    """
+    if not settings.DUPLICATE_DETECTION_ENABLED:
+        return None
+    if incident.latitude is None or incident.longitude is None:
+        return None
+    if not incident.incident_type or not looks_like_incident(incident):
+        return None
+
+    lat = float(incident.latitude)
+    lng = float(incident.longitude)
+    radius_km = settings.DUPLICATE_RADIUS_METERS / 1000.0
+    # ~111 km per degree of latitude; loose bounding box prefilter then haversine.
+    delta = radius_km / 111.0
+    cutoff = incident.created_at - timedelta(minutes=settings.DUPLICATE_WINDOW_MINUTES)
+
+    stmt = (
+        select(Incident)
+        .where(Incident.id != incident.id)
+        .where(Incident.status != IncidentStatus.rejected)
+        .where(Incident.incident_type == incident.incident_type)
+        .where(Incident.latitude.is_not(None))
+        .where(Incident.longitude.is_not(None))
+        .where(Incident.latitude.between(lat - delta, lat + delta))
+        .where(Incident.longitude.between(lng - delta, lng + delta))
+        .where(Incident.created_at >= cutoff)
+        .order_by(Incident.created_at.asc())
+    )
+    for cand in db.scalars(stmt).all():
+        if _haversine_km(lat, lng, float(cand.latitude), float(cand.longitude)) <= radius_km:
+            return cand
+    return None
 
 
 def _read_image_bytes(image_url: str | None) -> bytes | None:
@@ -120,8 +172,12 @@ def analyze_incident_sync(db: Session, incident_id: int) -> str:
       analysis persisted, the reporter + officers notified and an
       ``incident.analyzed`` / ``incident.created`` event broadcast.
     * ``"rejected"`` — the photo does not look like a reportable incident;
-      status set to ``rejected`` and the stored upload deleted. The caller
+      status set to ``rejected`` and the upload quarantined to spam. The caller
       decides whether to keep the row (async) or delete it (sync 422).
+    * ``"duplicate"`` — a real incident, but the same accident was already
+      reported nearby; status set to ``rejected`` and the report quarantined to
+      spam (reason="duplicate") linked to the original. The caller keeps the row
+      (async) or deletes it (sync 409).
     * ``"skipped"`` — the incident or its image could not be loaded.
     """
     incident = db.get(Incident, incident_id)
@@ -178,6 +234,30 @@ def analyze_incident_sync(db: Session, incident_id: int) -> str:
         logger.info("Incident %s rejected as non-incident (type=%s) -> spam",
                     incident_id, incident.incident_type)
         return "rejected"
+
+    # ---- Duplicate detection: same accident already reported nearby -------
+    duplicate_of = find_duplicate_incident(db, incident)
+    if duplicate_of is not None:
+        incident.status = IncidentStatus.rejected
+        spam_url = quarantine_upload_file(incident.image_url) or incident.image_url
+        db.add(SpamReport(
+            incident_id=incident.id,
+            reporter_id=incident.reporter_id,
+            image_url=spam_url,
+            incident_type=incident.incident_type,
+            reason="duplicate",
+            duplicate_of_incident_id=duplicate_of.id,
+            ai_caption=result.caption,
+            ai_description=incident.ai_description,
+            user_description=incident.user_description,
+            latitude=incident.latitude,
+            longitude=incident.longitude,
+        ))
+        incident.image_url = spam_url
+        db.commit()
+        logger.info("Incident %s is a duplicate of incident %s -> spam",
+                    incident_id, duplicate_of.id)
+        return "duplicate"
 
     # ---- Accepted: persist analysis, notify and broadcast -----------------
     incident.status = IncidentStatus.verified
