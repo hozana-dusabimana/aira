@@ -20,8 +20,10 @@ class CaptureScreen extends StatefulWidget {
 
 class _CaptureScreenState extends State<CaptureScreen> {
   File? _image;
-  String _severity = 'medium';
-  final _descCtl = TextEditingController();
+  // Manual severity + description are commented out: the AI generates both
+  // from the photo, so reporters no longer enter them. Restore to re-enable.
+  // String _severity = 'medium';
+  // final _descCtl = TextEditingController();
   bool _busy = false;
   bool _resolvingLocation = false;
   String? _error;
@@ -35,7 +37,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
   @override
   void dispose() {
-    _descCtl.dispose();
+    // _descCtl.dispose();
     super.dispose();
   }
 
@@ -74,11 +76,12 @@ class _CaptureScreenState extends State<CaptureScreen> {
       final pos = _locStatus.position;
       final Incident incident = await widget.api.submitIncident(
         image: _image!,
-        userDescription:
-            _descCtl.text.trim().isEmpty ? null : _descCtl.text.trim(),
+        // Manual description + severity removed; AI generates both.
+        // userDescription:
+        //     _descCtl.text.trim().isEmpty ? null : _descCtl.text.trim(),
         latitude: pos?.latitude,
         longitude: pos?.longitude,
-        severity: _severity,
+        // severity: _severity,
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
@@ -118,10 +121,12 @@ class _CaptureScreenState extends State<CaptureScreen> {
                 _buildPickerButtons(),
                 const SizedBox(height: 20),
                 _buildLocationSection(),
-                const SizedBox(height: 20),
-                _buildDescriptionField(),
-                const SizedBox(height: 16),
-                _buildSeveritySelector(),
+                // Manual description + severity inputs are disabled; the AI
+                // generates both from the photo. Restore to re-enable.
+                // const SizedBox(height: 20),
+                // _buildDescriptionField(),
+                // const SizedBox(height: 16),
+                // _buildSeveritySelector(),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   _buildErrorBanner(),
@@ -301,6 +306,8 @@ class _CaptureScreenState extends State<CaptureScreen> {
     );
   }
 
+  // Disabled: AI now generates the description and severity from the photo.
+  /*
   Widget _buildDescriptionField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,6 +396,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
       ],
     );
   }
+  */
 
   Widget _buildErrorBanner() {
     return Container(
