@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import ConfirmDialog, { type ConfirmTone } from '../components/common/ConfirmDialog';
 import IncidentLocationCard from '../components/incidents/IncidentLocationCard';
 import { SeverityBadge, StatusBadge } from '../components/incidents/StatusBadge';
-import { incidents as incidentsApi } from '../services/api';
+import { incidents as incidentsApi, mediaUrl } from '../services/api';
 import { realtime } from '../services/realtime';
 import type { Incident, IncidentMessage, IncidentStatus } from '../types';
 import { incidentTypeLabel } from '../utils/incident';
@@ -146,7 +146,7 @@ export default function IncidentDetails() {
       <div className="detail-grid">
         <div className="card">
           {incident.image_url ? (
-            <img src={incident.image_url} className="image-preview" alt="incident" />
+            <img src={mediaUrl(incident.image_url)} className="image-preview" alt="incident" />
           ) : (
             <div style={{ color: 'var(--muted)' }}>No image.</div>
           )}
