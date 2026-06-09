@@ -234,6 +234,8 @@ export default function IncidentDetails() {
             ))}
           </div>
 
+          {/* Citizen messaging hidden for now — the mobile app no longer
+              surfaces this thread.
           <h4 style={{ marginTop: 24 }}>Messages</h4>
           <div className="message-list">
             {messages.map((m) => (
@@ -257,6 +259,7 @@ export default function IncidentDetails() {
             />
             <button onClick={sendMessage}>Send</button>
           </div>
+          */}
         </div>
       </div>
 
