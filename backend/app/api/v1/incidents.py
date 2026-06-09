@@ -51,28 +51,35 @@ logger = logging.getLogger(__name__)
 # reporter is notified that an officer acted on their report.
 _STATUS_NOTIFICATION: dict[IncidentStatus, tuple[str, str, str]] = {
     IncidentStatus.verified: (
-        "Your report was approved",
-        "An officer has reviewed and approved your report. It is now being acted on.",
+        "Your report has been approved",
+        "Thank you for reporting. Our officers have reviewed and confirmed the "
+        "incident, and appropriate action is now being taken. You are helping "
+        "keep your community safe.",
         "report_approved",
     ),
     IncidentStatus.assigned: (
-        "An officer is on your report",
-        "Your report has been approved and assigned to an officer.",
+        "An officer has been assigned",
+        "Good news — your report has been approved and an officer is now "
+        "assigned to respond to the incident. Thank you for speaking up.",
         "report_approved",
     ),
     IncidentStatus.in_progress: (
         "Officers are responding",
-        "Officers are now actively responding to your reported incident.",
+        "Officers are now actively responding to the incident you reported. "
+        "We appreciate your prompt report and your help.",
         "status_update",
     ),
     IncidentStatus.resolved: (
-        "Your report is resolved",
-        "Your reported incident has been resolved. Thank you for reporting.",
+        "Your report has been resolved",
+        "The incident you reported has been successfully resolved. Thank you "
+        "for your vigilance and for helping make Rwanda safer.",
         "report_resolved",
     ),
     IncidentStatus.rejected: (
         "Report could not be confirmed",
-        "After review, your report could not be confirmed as an incident.",
+        "Thank you for your report. After careful review, our officers could "
+        "not confirm a reportable incident from the photo. Please report again "
+        "if the situation is ongoing or gets worse — we're here to help.",
         "report_rejected",
     ),
 }

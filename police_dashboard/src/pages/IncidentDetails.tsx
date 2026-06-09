@@ -169,12 +169,6 @@ export default function IncidentDetails() {
               </div>
             )}
 
-            {incident.user_description && (
-              <>
-                <h4 style={{ marginTop: 16 }}>Citizen description</h4>
-                <p>{incident.user_description}</p>
-              </>
-            )}
           </div>
         </div>
 
