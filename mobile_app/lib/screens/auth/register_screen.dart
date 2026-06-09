@@ -15,7 +15,8 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
-  final _email = TextEditingController();
+  // Email registration disabled — users sign up with a phone number.
+  // final _email = TextEditingController();
   final _phone = TextEditingController();
   final _pwd = TextEditingController();
   bool _busy = false;
@@ -23,10 +24,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final email = _email.text.trim();
+    // final email = _email.text.trim();
     final phone = _phone.text.trim();
-    if (email.isEmpty && phone.isEmpty) {
-      setState(() => _error = 'Enter an email address or a phone number.');
+    if (phone.isEmpty) {
+      setState(() => _error = 'Enter a phone number.');
       return;
     }
     setState(() {
@@ -36,9 +37,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       await context.read<AuthProvider>().register(
             fullName: _name.text.trim(),
-            email: email.isEmpty ? null : email,
+            // email: email.isEmpty ? null : email,
             password: _pwd.text,
-            phone: phone.isEmpty ? null : phone,
+            phone: phone,
           );
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/home');
@@ -65,23 +66,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 validator: (v) => v == null || v.length < 2 ? 'Required' : null,
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: _email,
-                decoration: const InputDecoration(
-                  labelText: 'Email (optional if phone given)',
-                ),
-                keyboardType: TextInputType.emailAddress,
-                validator: (v) => v != null && v.trim().isNotEmpty && !v.contains('@')
-                    ? 'Enter a valid email'
-                    : null,
-              ),
-              const SizedBox(height: 12),
+              // Email registration disabled — users sign up with a phone number.
+              // TextFormField(
+              //   controller: _email,
+              //   decoration: const InputDecoration(
+              //     labelText: 'Email (optional if phone given)',
+              //   ),
+              //   keyboardType: TextInputType.emailAddress,
+              //   validator: (v) => v != null && v.trim().isNotEmpty && !v.contains('@')
+              //       ? 'Enter a valid email'
+              //       : null,
+              // ),
+              // const SizedBox(height: 12),
               TextFormField(
                 controller: _phone,
                 decoration: const InputDecoration(
-                  labelText: 'Phone (optional if email given)',
+                  labelText: 'Phone',
                 ),
                 keyboardType: TextInputType.phone,
+                validator: (v) =>
+                    v == null || v.trim().isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 12),
               TextFormField(

@@ -91,13 +91,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 28),
                     TextFormField(
                       controller: _identifierCtl,
-                      keyboardType: TextInputType.emailAddress,
+                      keyboardType: TextInputType.phone,
                       decoration: const InputDecoration(
-                        labelText: 'Email or phone',
-                        prefixIcon: Icon(Icons.person_outline),
+                        labelText: 'Phone number',
+                        prefixIcon: Icon(Icons.phone_outlined),
                       ),
                       validator: (v) => v == null || v.trim().isEmpty
-                          ? 'Enter your email or phone number'
+                          ? 'Enter your phone number'
                           : null,
                     ),
                     const SizedBox(height: 14),
