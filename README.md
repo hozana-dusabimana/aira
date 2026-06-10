@@ -73,11 +73,13 @@ See `mobile_app/README.md` for required Android/iOS permissions.
 
 ## Default seeded accounts
 
-| Role     | Email                  | Password   | Login route                       |
-| -------- | ---------------------- | ---------- | --------------------------------- |
-| Admin    | admin@rnp.gov.rw       | Admin@123  | `POST /api/v1/auth/login`         |
-| Officer  | officer1@rnp.gov.rw    | Officer@1  | `POST /api/v1/auth/officer/login` |
-| Citizen  | citizen@example.com    | Citizen@1  | `POST /api/v1/auth/login`         |
+| Role     | Email                  | Phone           | Password   | Login route                       |
+| -------- | ---------------------- | --------------- | ---------- | --------------------------------- |
+| Admin    | admin@rnp.gov.rw       | +250788111111   | Admin@123  | `POST /api/v1/auth/login`         |
+| Officer  | officer1@rnp.gov.rw    | +250788222222   | Officer@1  | `POST /api/v1/auth/officer/login` |
+| Citizen  | citizen@example.com    | +250788333333   | Citizen@1  | `POST /api/v1/auth/login`         |
+
+The login `identifier` accepts an email **or** a phone number. The mobile app is phone-only (citizens sign in with `+250788333333`); the police dashboard uses email.
 
 ## API surface
 

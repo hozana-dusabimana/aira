@@ -6,13 +6,13 @@
 
 These are auto-seeded the first time the backend starts (controlled by `AUTO_SEED=true` in `.env` / compose). The same passwords are written to the README.
 
-| Role     | Email                  | Password    | Login endpoint                       |
-| -------- | ---------------------- | ----------- | ------------------------------------ |
-| Admin    | `admin@rnp.gov.rw`     | `Admin@123` | `POST /api/v1/auth/login`            |
-| Officer  | `officer1@rnp.gov.rw`  | `Officer@1` | `POST /api/v1/auth/officer/login`    |
-| Citizen  | `citizen@example.com`  | `Citizen@1` | `POST /api/v1/auth/login`            |
+| Role     | Email                  | Phone            | Password    | Login endpoint                       |
+| -------- | ---------------------- | ---------------- | ----------- | ------------------------------------ |
+| Admin    | `admin@rnp.gov.rw`     | `+250788111111`  | `Admin@123` | `POST /api/v1/auth/login`            |
+| Officer  | `officer1@rnp.gov.rw`  | `+250788222222`  | `Officer@1` | `POST /api/v1/auth/officer/login`    |
+| Citizen  | `citizen@example.com`  | `+250788333333`  | `Citizen@1` | `POST /api/v1/auth/login`            |
 
-The mobile app's login screen pre-fills the citizen account; the dashboard's login screen pre-fills the officer account.
+The login endpoints accept an `identifier` that may be **either** an email or a phone number. The **mobile app is phone-only** — citizens register and sign in with their phone number (its login screen pre-fills the citizen phone `+250788333333`). The **police dashboard is email-based** — its login screen pre-fills the officer email.
 
 ## MySQL
 
