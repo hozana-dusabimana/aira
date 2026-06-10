@@ -48,7 +48,7 @@ class ProfileScreen extends StatelessWidget {
                                 style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.bold)),
-                            Text(user?.email ?? '—',
+                            Text(user?.email ?? user?.phone ?? '—',
                                 style: const TextStyle(color: Colors.grey)),
                           ],
                         ),
