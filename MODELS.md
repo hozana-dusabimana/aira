@@ -152,9 +152,6 @@ Confusion matrix / per-class precision-recall:
 - **Domain gap.** Training images are public web/CCTV photos, not identical to
   local citizen phone photos; accuracy on real submissions will differ from
   validation accuracy. Adding in-domain images closes this gap.
-- **Transfer learning, not from scratch.** The visual backbone is pretrained on
-  ImageNet; precisely stated, *we trained a classifier head on our own data on
-  top of a pretrained backbone* — the standard and accepted method.
 
 ---
 
