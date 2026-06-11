@@ -56,18 +56,24 @@ export default function Settings() {
 
       <div className="card" style={{ marginBottom: 16 }}>
         <h3 style={{ marginTop: 0 }}>Duplicate reports</h3>
-        <p style={{ color: 'var(--muted)', marginTop: 0 }}>
-          Show the “Flagged” section in the sidebar to review duplicate reports of accidents
-          already reported nearby (plus any older rejected reports you import).
+        <p style={{ color: 'var(--muted)', marginTop: 0, marginBottom: 0 }}>
+          Review duplicate reports of accidents already reported nearby, plus any older
+          rejected reports you import.
         </p>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-          <input
-            type="checkbox"
-            checked={showFlagged}
-            onChange={(e) => setShowFlagged(e.target.checked)}
-          />
-          <span>Show duplicates (display the Flagged section)</span>
-        </label>
+        <div className="setting-row">
+          <div className="setting-row-text">
+            <span className="setting-row-title">Show duplicates</span>
+            <span className="setting-row-hint">Display the “Flagged” section in the sidebar.</span>
+          </div>
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={showFlagged}
+              onChange={(e) => setShowFlagged(e.target.checked)}
+            />
+            <span className="toggle-track" aria-hidden="true" />
+          </label>
+        </div>
       </div>
 
       <form className="card" onSubmit={changePassword}>

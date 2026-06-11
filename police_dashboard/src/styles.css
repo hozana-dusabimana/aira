@@ -582,6 +582,60 @@ input:focus, select:focus, textarea:focus {
 .pagination-btn.is-active:hover { background: var(--accent); }
 .pagination-gap { color: var(--muted); padding: 0 2px; }
 
+/* ===================== TOGGLE SWITCH ===================== */
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0 2px;
+  flex-wrap: wrap;
+}
+.setting-row-text { display: flex; flex-direction: column; gap: 2px; }
+.setting-row-title { font-weight: 600; font-size: 14px; }
+.setting-row-hint { color: var(--muted); font-size: 13px; }
+
+.toggle { display: inline-flex; align-items: center; cursor: pointer; flex-shrink: 0; }
+.toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+}
+.toggle-track {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+.toggle input:checked + .toggle-track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.toggle input:checked + .toggle-track::after {
+  transform: translateX(20px);
+  background: #fff;
+}
+.toggle input:focus-visible + .toggle-track {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
 .badge {
   display: inline-block;
   padding: 2px 8px;
