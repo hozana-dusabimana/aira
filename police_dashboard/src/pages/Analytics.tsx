@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
+  Bar, BarChart, CartesianGrid, Cell, Label, Legend, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import { analytics } from '../services/api';
@@ -63,10 +63,14 @@ export default function Analytics() {
         <div className="card">
           <h3 style={{ marginTop: 0 }}>Counts by type</h3>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={byType}>
+            <BarChart data={byType} margin={{ top: 8, right: 16, bottom: 24, left: 12 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="label" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" allowDecimals={false} />
+              <XAxis dataKey="label" stroke="#94a3b8">
+                <Label value="Incident type" position="insideBottom" offset={-16} fill="#94a3b8" />
+              </XAxis>
+              <YAxis stroke="#94a3b8" allowDecimals={false}>
+                <Label value="Number of reports" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} fill="#94a3b8" />
+              </YAxis>
               <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155' }} />
               <Bar dataKey="count" fill="#2563eb" />
             </BarChart>
@@ -77,10 +81,14 @@ export default function Analytics() {
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Reports — last 30 days</h3>
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={timeline}>
+          <LineChart data={timeline} margin={{ top: 8, right: 16, bottom: 24, left: 12 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis dataKey="date" stroke="#94a3b8" />
-            <YAxis stroke="#94a3b8" allowDecimals={false} />
+            <XAxis dataKey="date" stroke="#94a3b8">
+              <Label value="Date" position="insideBottom" offset={-16} fill="#94a3b8" />
+            </XAxis>
+            <YAxis stroke="#94a3b8" allowDecimals={false}>
+              <Label value="Number of reports" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} fill="#94a3b8" />
+            </YAxis>
             <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155' }} />
             <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={2} dot={false} />
           </LineChart>

@@ -5,6 +5,7 @@ import {
   AreaChart,
   CartesianGrid,
   Cell,
+  Label,
   Legend,
   Pie,
   PieChart,
@@ -167,7 +168,7 @@ export default function Dashboard() {
             <EmptyChart label="No data yet." />
           ) : (
             <ResponsiveContainer width="100%" height={240}>
-              <AreaChart data={timeline} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={timeline} margin={{ top: 10, right: 10, left: 4, bottom: 20 }}>
                 <defs>
                   <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#2563eb" stopOpacity={0.45} />
@@ -175,8 +176,12 @@ export default function Dashboard() {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2a3d" />
-                <XAxis dataKey="date" stroke="#64748b" fontSize={12} />
-                <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} />
+                <XAxis dataKey="date" stroke="#64748b" fontSize={12}>
+                  <Label value="Date" position="insideBottom" offset={-12} fill="#64748b" fontSize={12} />
+                </XAxis>
+                <YAxis stroke="#64748b" fontSize={12} allowDecimals={false}>
+                  <Label value="Number of reports" angle={-90} position="insideLeft" style={{ textAnchor: 'middle' }} fill="#64748b" fontSize={12} />
+                </YAxis>
                 <Tooltip
                   contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}
                   labelStyle={{ color: '#94a3b8' }}

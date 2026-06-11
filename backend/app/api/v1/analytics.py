@@ -21,6 +21,21 @@ from app.schemas.analytics import (
 
 router = APIRouter()
 
+# The canonical incident_type vocabulary the system produces (mirrors
+# ``SEVERITY_BY_TYPE`` in app.ai.incident_classifier). Kept here as a plain
+# tuple so the analytics router doesn't have to import the heavy AI module.
+# ``by_type`` always reports every one of these — including zero-count types —
+# so the dashboard/analytics charts show the full distribution, not just the
+# categories that happen to have data.
+CANONICAL_INCIDENT_TYPES: tuple[str, ...] = (
+    "fire",
+    "traffic",
+    "violent_crime",
+    "vandalism",
+    "suspicious_activity",
+    "general",
+)
+
 
 def _avg_response_minutes(db: Session) -> float | None:
     rows = db.execute(
@@ -67,7 +82,14 @@ def by_type(
             func.count(Incident.id).label("count"),
         ).group_by(Incident.incident_type)
     ).all()
-    return [CountByLabel(label=r.label, count=r.count) for r in rows]
+    counts = {r.label: r.count for r in rows}
+    # Start from the canonical vocabulary (zero-filled) so every type is shown,
+    # then append any extra labels that exist in the data but aren't canonical
+    # (e.g. legacy or "unknown" rows) so nothing is silently dropped.
+    labels = list(CANONICAL_INCIDENT_TYPES) + [
+        label for label in counts if label not in CANONICAL_INCIDENT_TYPES
+    ]
+    return [CountByLabel(label=label, count=counts.get(label, 0)) for label in labels]
 
 
 @router.get("/incidents-by-location", response_model=list[GeoPoint])
