@@ -142,6 +142,8 @@ def main() -> None:
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--img-size", type=int, default=224)
     parser.add_argument("--val-split", type=float, default=0.2, help="Fraction held out for validation")
+    parser.add_argument("--limit-per-class", type=int, default=0,
+                        help="If >0, randomly use at most this many images per class (faster training)")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
@@ -166,6 +168,23 @@ def main() -> None:
         sys.exit(1)
     logger.info("Classes (%d): %s", len(class_names), class_names)
     logger.info("Total images: %d", len(full))
+
+    # Optional per-class subsample for a fast (but still real) training run.
+    if args.limit_per_class and args.limit_per_class > 0:
+        from collections import defaultdict
+        import torch as _t
+        by_class: dict[int, list[int]] = defaultdict(list)
+        for idx, (_, label) in enumerate(full.samples):  # type: ignore[attr-defined]
+            by_class[label].append(idx)
+        g = _t.Generator().manual_seed(args.seed)
+        keep: list[int] = []
+        for label, idxs in by_class.items():
+            perm = _t.randperm(len(idxs), generator=g).tolist()
+            keep.extend(idxs[i] for i in perm[: args.limit_per_class])
+        from torch.utils.data import Subset
+        full = Subset(full, sorted(keep))
+        full.classes = class_names  # type: ignore[attr-defined]
+        logger.info("Subsampled to <=%d/class -> %d images total", args.limit_per_class, len(full))
 
     n_val = max(1, int(len(full) * args.val_split))
     n_train = len(full) - n_val

@@ -1,0 +1,7 @@
+# Trained model weights are large binaries — keep them out of git.
+# (Ship via Git LFS or a release artifact if prod needs them; the app falls
+# back to the rule classifier when the file is absent.)
+*.pt
+*.pth
+# The small evidence artifacts (metrics.json, labels.json, training_log.csv)
+# are intentionally tracked.

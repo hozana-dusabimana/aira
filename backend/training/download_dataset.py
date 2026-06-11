@@ -11,16 +11,13 @@ what keeps this to a few thousand images instead of pulling entire multi-GB sets
     python train_classifier.py --data dataset --epochs 15
 
 Sources (all public, real photos/frames):
-  fire           -> touati-kamel/forest-fire-dataset            (fire & smoke frames)
-  traffic        -> ikuldeep1/vehicle-damage-fraud-image-balanced (damaged/crashed vehicles)
-  violent_crime  -> Subh775/WeaponDetection                     (guns/knives in scenes)
-  vandalism      -> Programmer-RD-AI/road-issues-detection-dataset (vandalism/damage/litter)
-  general        -> prithivMLmods/OpenScene-Classification       (ordinary non-incident scenes)
+  fire      -> Vertex-Test/FireSmokeDataset          (fire & smoke images)
+  accident  -> Endorphins/accidents                  (real vehicle crash scenes)
+  normal    -> prithivMLmods/OpenScene-Classification (ordinary non-incident scenes)
 
-NOTE on `suspicious_activity`: there is no clean public image-classification
-dataset for it (only large CCTV-frame / video sets). It is intentionally left
-out here; add your own images to dataset/suspicious_activity/ if you want the
-model to learn it. The backend's rule classifier still handles that category.
+`normal` is the negative class: it teaches the model what is NOT a reportable
+incident, so it doesn't flag every photo. The class names map to the backend's
+incident_type vocabulary as: accident -> traffic, normal -> general.
 
 Be honest when you present this: these are REAL third-party datasets, each used
 under its own licence (mostly CC0 / open) for the class it depicts. You trained
@@ -38,15 +35,13 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger("download")
 
 # class -> (repo_id, split, image_column). config=None uses the default config.
-# Order matters: the fast parquet-backed datasets are listed first so their
-# folders fill within seconds, then the slower per-file "imagefolder" datasets
-# (fire, vandalism) run last. ``fast`` is only a hint for logging.
+# Simplified 3-class model. Order: the fast parquet-backed dataset (normal)
+# first so its folder fills within seconds, then the per-file "imagefolder"
+# sources. ``fast`` is only a hint for logging.
 SOURCES: dict[str, dict] = {
-    "general": {"repo": "prithivMLmods/OpenScene-Classification", "split": "train", "image_col": "image", "fast": True},
-    "traffic": {"repo": "ikuldeep1/vehicle-damage-fraud-image-balanced", "split": "train", "image_col": "image", "fast": True},
-    "violent_crime": {"repo": "Subh775/WeaponDetection", "split": "train", "image_col": "image", "fast": True},
-    "vandalism": {"repo": "Programmer-RD-AI/road-issues-detection-dataset", "split": "train", "image_col": "image", "fast": False},
-    "fire": {"repo": "Vertex-Test/FireSmokeDataset", "split": "train", "image_col": "image", "fast": False},
+    "normal": {"repo": "prithivMLmods/OpenScene-Classification", "split": "train", "image_col": "image", "fast": True},
+    "accident": {"repo": "Endorphins/accidents", "split": "train", "image_col": "image", "fast": False},
+    "fire": {"repo": "touati-kamel/forest-fire-dataset", "split": "train", "image_col": "image", "fast": False},
 }
 
 

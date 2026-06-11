@@ -30,6 +30,21 @@ from app.ai.incident_classifier import classify_incident, scenario_and_severity_
 
 logger = logging.getLogger(__name__)
 
+# The trained classifier uses friendly folder/class names; map them onto the
+# backend's canonical incident_type vocabulary. ``normal`` -> ``general`` is what
+# makes a "nothing to report" prediction get treated as a non-incident.
+CNN_CLASS_TO_INCIDENT_TYPE = {
+    "fire": "fire",
+    "accident": "traffic",
+    "normal": "general",
+    # pass-through for any model already trained on canonical names
+    "traffic": "traffic",
+    "general": "general",
+    "violent_crime": "violent_crime",
+    "vandalism": "vandalism",
+    "suspicious_activity": "suspicious_activity",
+}
+
 
 def _apply_trained_cnn(result: "AnalysisResult", image_bytes: bytes) -> None:
     """Let our self-trained classifier override the incident_type in place.
@@ -47,10 +62,11 @@ def _apply_trained_cnn(result: "AnalysisResult", image_bytes: bytes) -> None:
     pred = incident_cnn.predict(image_bytes)
     if not pred:
         return
-    cnn_type, cnn_conf = pred
+    raw_class, cnn_conf = pred
     if cnn_conf < getattr(settings, "INCIDENT_CNN_MIN_CONFIDENCE", 0.45):
-        logger.debug("CNN prediction %s too low-confidence (%.2f); keeping rules.", cnn_type, cnn_conf)
+        logger.debug("CNN prediction %s too low-confidence (%.2f); keeping rules.", raw_class, cnn_conf)
         return
+    cnn_type = CNN_CLASS_TO_INCIDENT_TYPE.get(raw_class, raw_class)
     severity, scenario = scenario_and_severity_for_type(cnn_type, result.detected_objects)
     logger.info(
         "Self-trained CNN set incident_type=%s (%.2f), was %s.",

@@ -1,0 +1,21 @@
+{
+  "best_val_accuracy": 0.98095,
+  "final_epoch": {
+    "epoch": 4,
+    "train_loss": 0.17485,
+    "train_acc": 0.94762,
+    "val_loss": 0.10441,
+    "val_acc": 0.98095
+  },
+  "num_classes": 3,
+  "classes": [
+    "accident",
+    "fire",
+    "normal"
+  ],
+  "num_images": 1050,
+  "train_images": 840,
+  "val_images": 210,
+  "epochs": 4,
+  "arch": "resnet18 (ImageNet pretrained backbone, trained head)"
+}

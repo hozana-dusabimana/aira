@@ -12,21 +12,21 @@ default/expected ordering.
 from __future__ import annotations
 
 # One folder per class under the dataset root.
+#
+# Simplified 3-class model: the two incident types with clean, real public
+# datasets (fire, accident) plus a "normal" negative class so the model can
+# recognise a non-incident. The class names map to the backend's incident_type
+# vocabulary as: accident -> traffic, normal -> general, fire -> fire
+# (see CNN_CLASS_TO_INCIDENT_TYPE in app/ai/image_analyzer.py).
 INCIDENT_CLASSES: list[str] = [
     "fire",
-    "traffic",
-    "violent_crime",
-    "vandalism",
-    "suspicious_activity",
-    "general",
+    "accident",
+    "normal",
 ]
 
 # Human-readable descriptions (used in the README and in --help output).
 CLASS_DESCRIPTIONS: dict[str, str] = {
     "fire": "Active fire or heavy smoke (buildings, vehicles, bush).",
-    "traffic": "Road traffic accidents / collisions / damaged vehicles.",
-    "violent_crime": "Weapons visible, fights, armed threat.",
-    "vandalism": "Deliberate property damage, broken structures, debris.",
-    "suspicious_activity": "Low-light loitering, break-in attempts, unusual gatherings.",
-    "general": "Anything that is NOT a reportable incident (selfies, objects, scenery).",
+    "accident": "Road traffic accidents / vehicle collisions / crash scenes.",
+    "normal": "Anything that is NOT a reportable incident (ordinary scenes, scenery, traffic).",
 }
