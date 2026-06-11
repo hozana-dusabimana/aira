@@ -18,11 +18,17 @@ dataset of real images.
 
 **Classes (3):**
 
-| Class | Meaning |
-|---|---|
-| `fire` | active fire / heavy smoke |
-| `accident` | road traffic accident / vehicle collision |
-| `normal` | NOT a reportable incident (ordinary scenes) |
+| Class | Meaning | Backend `incident_type` |
+|---|---|---|
+| `fire` | active fire / heavy smoke | `fire` |
+| `accident` | road traffic accident / vehicle collision | **`traffic`** |
+| `normal` | NOT a reportable incident (ordinary scenes) | `general` |
+
+The model's `accident` class **corresponds to the backend's `traffic` incident
+type** (and `normal` corresponds to `general`). This mapping is applied
+automatically by `CNN_CLASS_TO_INCIDENT_TYPE` in
+[`image_analyzer.py`](backend/app/ai/image_analyzer.py), so an `accident`
+prediction is recorded as a `traffic` incident.
 
 The `normal` class is essential: it teaches the model what is *not* an incident,
 so it doesn't flag every photo — this is what lets the system reject
