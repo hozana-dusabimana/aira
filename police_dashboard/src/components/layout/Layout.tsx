@@ -12,6 +12,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/spam': 'Flagged Reports',
   '/map': 'Live operations map',
   '/analytics': 'Analytics',
+  '/reports': 'Reports',
   '/officers': 'Officers',
   '/status': 'System status',
   '/settings': 'Settings',
@@ -65,6 +66,9 @@ export default function Layout() {
           </NavLink>
           <NavLink to="/analytics">
             <span className="nav-icon" aria-hidden>📈</span> Analytics
+          </NavLink>
+          <NavLink to="/reports">
+            <span className="nav-icon" aria-hidden>📋</span> Reports
           </NavLink>
         </nav>
 

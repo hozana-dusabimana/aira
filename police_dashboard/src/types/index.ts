@@ -112,6 +112,37 @@ export interface TimelinePoint {
   count: number;
 }
 
+export interface ReportRow {
+  id: number;
+  created_at: string;
+  incident_type?: string;
+  severity: string;
+  status: string;
+  resolved_at?: string;
+  response_minutes?: number;
+  location?: string;
+  reporter?: string;
+}
+
+export interface ReportSummary {
+  title: string;
+  generated_at: string;
+  start_date: string;
+  end_date: string;
+  status_filter?: string;
+  total: number;
+  pending: number;
+  in_progress: number;
+  resolved: number;
+  rejected: number;
+  resolution_rate: number;
+  average_response_minutes?: number;
+  by_type: CountByLabel[];
+  by_severity: CountByLabel[];
+  timeline: TimelinePoint[];
+  rows: ReportRow[];
+}
+
 export interface IncidentMessage {
   id: number;
   incident_id: number;

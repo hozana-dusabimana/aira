@@ -9,6 +9,7 @@ import Landing from './pages/Landing';
 import Login from './pages/Login';
 import MapView from './pages/MapView';
 import Officers from './pages/Officers';
+import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Spam from './pages/Spam';
 import SystemStatusPage from './pages/SystemStatus';
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="/spam" element={<Spam />} />
         <Route path="/map" element={<MapView />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/officers" element={<Officers />} />
         <Route path="/status" element={<SystemStatusPage />} />
         <Route path="/settings" element={<Settings />} />

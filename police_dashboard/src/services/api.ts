@@ -8,6 +8,7 @@ import type {
   Notification,
   Officer,
   OverviewMetrics,
+  ReportSummary,
   SpamReport,
   Station,
   TimelinePoint,
@@ -188,4 +189,10 @@ export const analytics = {
       .then((r) => r.data),
   timeline: (days = 30) =>
     api.get<TimelinePoint[]>('/analytics/incidents-timeline', { params: { days } }).then((r) => r.data),
+};
+
+// --- Reports --------------------------------------------------
+export const reports = {
+  summary: (params?: { start_date?: string; end_date?: string; status?: IncidentStatus }) =>
+    api.get<ReportSummary>('/reports/summary', { params }).then((r) => r.data),
 };
