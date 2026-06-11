@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useShowFlagged } from '../hooks/useShowFlagged';
 import { APK_URL } from '../config';
 
 export default function Settings() {
   const { user } = useAuth();
+  const [showFlagged, setShowFlagged] = useShowFlagged();
   const [current, setCurrent] = useState('');
   const [newPwd, setNewPwd] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
@@ -50,6 +52,22 @@ export default function Settings() {
         <p style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 0 }}>
           Android only · enable “install from unknown sources” to complete setup.
         </p>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3 style={{ marginTop: 0 }}>Duplicate reports</h3>
+        <p style={{ color: 'var(--muted)', marginTop: 0 }}>
+          Show the “Flagged” section in the sidebar to review duplicate reports of accidents
+          already reported nearby (plus any older rejected reports you import).
+        </p>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={showFlagged}
+            onChange={(e) => setShowFlagged(e.target.checked)}
+          />
+          <span>Show duplicates (display the Flagged section)</span>
+        </label>
       </div>
 
       <form className="card" onSubmit={changePassword}>

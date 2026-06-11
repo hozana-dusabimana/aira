@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useShowFlagged } from '../../hooks/useShowFlagged';
 import GlobalSearch from './GlobalSearch';
 import NotificationsBell from './NotificationsBell';
 import SystemStatus from './SystemStatus';
@@ -26,6 +27,7 @@ function pageTitle(pathname: string): string {
 export default function Layout() {
   const { user } = useAuth();
   const location = useLocation();
+  const [showFlagged] = useShowFlagged();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -58,9 +60,11 @@ export default function Layout() {
           <NavLink to="/incidents">
             <span className="nav-icon" aria-hidden>🚨</span> Incidents
           </NavLink>
-          <NavLink to="/spam">
-            <span className="nav-icon" aria-hidden>🛑</span> Flagged
-          </NavLink>
+          {showFlagged && (
+            <NavLink to="/spam">
+              <span className="nav-icon" aria-hidden>🛑</span> Flagged
+            </NavLink>
+          )}
           <NavLink to="/map">
             <span className="nav-icon" aria-hidden>🗺️</span> Live Map
           </NavLink>
