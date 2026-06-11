@@ -63,7 +63,7 @@ export default function Analytics() {
         <div className="card">
           <h3 style={{ marginTop: 0 }}>Counts by type</h3>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={byType} margin={{ top: 8, right: 16, bottom: 24, left: 12 }}>
+            <BarChart data={byType} margin={{ top: 8, right: 16, bottom: 40, left: 28 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
               <XAxis dataKey="label" stroke="#94a3b8">
                 <Label value="Incident type" position="insideBottom" offset={-16} fill="#94a3b8" />
@@ -81,7 +81,7 @@ export default function Analytics() {
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Reports — last 30 days</h3>
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={timeline} margin={{ top: 8, right: 16, bottom: 24, left: 12 }}>
+          <LineChart data={timeline} margin={{ top: 8, right: 16, bottom: 40, left: 28 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
             <XAxis dataKey="date" stroke="#94a3b8">
               <Label value="Date" position="insideBottom" offset={-16} fill="#94a3b8" />

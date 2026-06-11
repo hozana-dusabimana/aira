@@ -162,10 +162,12 @@ export default function IncidentDetails() {
             {incident.ai_analysis && (
               <div className="chip-row" style={{ marginTop: 8 }}>
                 <span className="chip">Scene: {incident.ai_analysis.scene_label}</span>
+                {/* Confidence & model badges hidden for now.
                 <span className="chip">
                   Confidence: {Math.round((incident.ai_analysis.confidence_score ?? 0) * 100)}%
                 </span>
                 <span className="chip">Model: {incident.ai_analysis.model_version}</span>
+                */}
               </div>
             )}
 
@@ -212,9 +214,8 @@ export default function IncidentDetails() {
             />
           </div>
 
-          <h4 style={{ marginTop: 24 }}>
-            <label htmlFor="status-note">Update status</label>
-          </h4>
+          <h4 style={{ marginTop: 24 }}>Update status</h4>
+          {/* Optional note-for-citizen textarea hidden for now.
           <textarea
             id="status-note"
             placeholder="Optional note for the citizen…"
@@ -222,6 +223,7 @@ export default function IncidentDetails() {
             onChange={(e) => setNote(e.target.value)}
             rows={2}
           />
+          */}
           <div className="actions">
             {NEXT_STATUSES.map((s) => (
               <button

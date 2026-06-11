@@ -53,3 +53,5 @@ logs/
 
 private-key.md
 deploy_prompt.md
+# TS build cache
+*.tsbuildinfo
