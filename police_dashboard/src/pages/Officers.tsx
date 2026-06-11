@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Pagination from '../components/common/Pagination';
 import { officers as officersApi } from '../services/api';
 import type { Officer } from '../types';
 
@@ -13,6 +14,8 @@ const EMPTY = {
   department: '',
 };
 
+const PAGE_SIZE = 15;
+
 export default function Officers() {
   const [list, setList] = useState<Officer[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -20,6 +23,9 @@ export default function Officers() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ ...EMPTY });
+  const [page, setPage] = useState(1);
+
+  const pageItems = list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const isEditing = editingId !== null;
 
@@ -168,7 +174,7 @@ export default function Officers() {
             </tr>
           </thead>
           <tbody>
-            {list.map((o) => (
+            {pageItems.map((o) => (
               <tr key={o.id}>
                 <td>#{o.id}</td>
                 <td>{o.full_name ?? '—'}</td>
@@ -189,6 +195,13 @@ export default function Officers() {
             {list.length === 0 && <tr><td colSpan={7} style={{ color: 'var(--muted)' }}>No officers.</td></tr>}
           </tbody>
         </table>
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={list.length}
+          onPageChange={setPage}
+          label="officers"
+        />
       </div>
     </div>
   );

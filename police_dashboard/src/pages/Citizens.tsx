@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import Pagination from '../components/common/Pagination';
 import { citizens as citizensApi } from '../services/api';
 import type { User } from '../types';
+
+const PAGE_SIZE = 15;
 
 export default function Citizens() {
   const [list, setList] = useState<User[]>([]);
@@ -8,6 +11,7 @@ export default function Citizens() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
 
   async function load() {
     setLoading(true);
@@ -32,6 +36,10 @@ export default function Citizens() {
         .some((v) => v!.toLowerCase().includes(q)),
     );
   }, [list, query]);
+
+  useEffect(() => { setPage(1); }, [query]);
+
+  const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   async function toggleActive(u: User) {
     setBusyId(u.id);
@@ -95,7 +103,7 @@ export default function Citizens() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((u) => (
+            {pageItems.map((u) => (
               <tr key={u.id}>
                 <td>#{u.id}</td>
                 <td>{u.full_name}</td>
@@ -127,6 +135,13 @@ export default function Citizens() {
             )}
           </tbody>
         </table>
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={filtered.length}
+          onPageChange={setPage}
+          label="citizens"
+        />
       </div>
     </div>
   );

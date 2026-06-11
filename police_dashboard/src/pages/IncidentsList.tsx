@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Pagination from '../components/common/Pagination';
 import { SeverityBadge, StatusBadge } from '../components/incidents/StatusBadge';
 import { incidents as incidentsApi } from '../services/api';
 import { realtime } from '../services/realtime';
@@ -11,12 +12,15 @@ const STATUSES: (IncidentStatus | '')[] = [
   '', 'pending', 'analyzing', 'verified', 'assigned', 'in_progress', 'resolved',
 ];
 
+const PAGE_SIZE = 15;
+
 export default function IncidentsList() {
   const navigate = useNavigate();
   const [list, setList] = useState<Incident[]>([]);
   const [statusFilter, setStatusFilter] = useState<IncidentStatus | ''>('');
   const [loading, setLoading] = useState(false);
   const [liveBadge, setLiveBadge] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   async function load() {
     setLoading(true);
@@ -33,7 +37,10 @@ export default function IncidentsList() {
 
   useEffect(() => {
     load();
+    setPage(1);
   }, [statusFilter]);
+
+  const pageItems = list.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   useEffect(() => {
     const unsub = realtime.subscribeStaff((evt) => {
@@ -95,7 +102,7 @@ export default function IncidentsList() {
             </tr>
           </thead>
           <tbody>
-            {list.map((i) => (
+            {pageItems.map((i) => (
               <tr key={i.id} onClick={() => navigate(`/incidents/${i.id}`)}>
                 <td>#{i.id}</td>
                 <td>{incidentTypeLabel(i.incident_type)}</td>
@@ -117,6 +124,13 @@ export default function IncidentsList() {
             )}
           </tbody>
         </table>
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={list.length}
+          onPageChange={setPage}
+          label="incidents"
+        />
       </div>
     </div>
   );
