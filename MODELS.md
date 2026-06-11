@@ -155,7 +155,39 @@ Confusion matrix / per-class precision-recall:
 
 ---
 
-## 8. Reproduce it
+## 8. Algorithm used
+
+"What algorithm did you use?" — in one line:
+
+> **Supervised image classification using a ResNet-18 CNN trained by transfer
+> learning — Adam optimizer with cross-entropy loss and backpropagation.**
+
+The full stack, as implemented in
+[`train_classifier.py`](backend/training/train_classifier.py):
+
+| Layer | What we used |
+|---|---|
+| Learning paradigm | **Supervised learning** (labelled images → predict the label) |
+| Model architecture | **ResNet-18** convolutional neural network (CNN) |
+| Training technique | **Transfer learning** (frozen pretrained backbone + train only the new head) |
+| Loss function | **Cross-Entropy Loss** (`nn.CrossEntropyLoss`) |
+| Optimization algorithm | **Adam** (Adaptive Moment Estimation), learning rate 1e-3 |
+| Learning mechanism | **Backpropagation + mini-batch gradient descent** |
+
+**How it actually learns** — for each mini-batch of images:
+
+1. **Forward pass** — the image goes through ResNet-18 → predicted class scores.
+2. **Loss** — Cross-Entropy measures how wrong the prediction is vs. the true label.
+3. **Backward pass** — backpropagation computes the gradients (which direction to
+   nudge the weights to reduce the error).
+4. **Update** — the **Adam** optimizer adjusts the weights (only the
+   classification head's, since the backbone is frozen).
+5. Repeat over all batches × epochs; keep the checkpoint with the best validation
+   accuracy.
+
+---
+
+## 9. Reproduce it
 
 ```bash
 cd backend
@@ -168,3 +200,63 @@ python train_classifier.py --data dataset --epochs 15 # train -> ../weights/*
 python evaluate.py --data dataset                     # accuracy + confusion matrix
 python predict.py path/to/photo.jpg                   # classify one image
 ```
+
+---
+
+## Appendix — What is ResNet-18?
+
+ResNet-18 is the neural-network architecture we used as the backbone of the
+incident classifier.
+
+### What it is
+- **ResNet** = "Residual Network," a convolutional neural network (CNN)
+  introduced by Microsoft Research in 2015 (it won the ImageNet competition that
+  year).
+- **18** = it has 18 layers with learnable weights (convolutions + the final
+  fully-connected layer). It's the *smallest* ResNet variant — others go up to
+  ResNet-50, -101, -152. Small = fast and light (~11 million parameters,
+  ~45 MB), which is why we picked it: it runs on a CPU in milliseconds.
+
+### How a CNN like this "sees" an image
+An image is just a grid of pixel numbers (e.g. 224×224×3 for RGB). ResNet-18
+passes it through a stack of **convolution layers**, each sliding small filters
+over the image to detect patterns:
+
+- **Early layers** detect simple things — edges, corners, colour blobs.
+- **Middle layers** combine those into textures and shapes — wheels, flames, windows.
+- **Late layers** combine those into high-level concepts — "this looks like a car," "this looks like fire."
+
+A final layer turns those high-level features into class scores (for us: `fire`,
+`accident`, `normal`).
+
+```
+image → [conv layers: edges → textures → parts → objects] → [classifier] → fire / accident / normal
+```
+
+### The key idea — "residual" (skip) connections
+The "Res" in ResNet is its one big innovation. Before ResNet, making networks
+*deeper* paradoxically made them **worse** — gradients shrank to nothing during
+training (the "vanishing gradient" problem), so deep networks couldn't learn.
+
+ResNet fixed this with **skip connections**: instead of forcing each block to
+learn a full transformation, it learns only the *change* (the "residual") and
+adds it back to the input:
+
+```
+output = F(x) + x        ← the "+ x" is the skip connection
+```
+
+That little `+ x` lets the signal (and the training gradient) flow straight
+through, so very deep networks train reliably. It's why ResNets work and became
+one of the most-used architectures in computer vision.
+
+### Why we used it in AIRA
+- **Pretrained on ImageNet** (1.2M images, 1000 classes) — its conv layers
+  already know generic vision, so we reused them (transfer learning).
+- We **froze** that backbone and trained only a new final layer on our
+  fire/accident/normal images. The backbone extracts features; our trained head
+  makes the incident decision.
+- **Small + fast + free** — runs locally on CPU, no GPU, no external API.
+
+In short: ResNet-18 is the "eyes" (pretrained feature extractor), and the small
+classifier head we trained on top is the "judgment" (fire vs accident vs normal).
