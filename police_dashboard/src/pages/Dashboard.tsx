@@ -22,6 +22,18 @@ import type { CountByLabel, Incident, OverviewMetrics, TimelinePoint } from '../
 
 const PIE_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
+function formatDuration(minutes: number): string {
+  if (minutes < 1) return '<1m';
+  if (minutes < 60) return `${Math.round(minutes)}m`;
+  const hours = minutes / 60;
+  if (hours < 24) return `${Math.round(hours * 10) / 10}h`;
+  const days = hours / 24;
+  if (days < 30) return `${Math.round(days * 10) / 10}d`;
+  const months = days / 30;
+  if (months < 12) return `${Math.round(months * 10) / 10}mo`;
+  return `${Math.round((months / 12) * 10) / 10}y`;
+}
+
 function formatTime(iso: string): string {
   const d = new Date(iso);
   const diff = Date.now() - d.getTime();
@@ -149,7 +161,7 @@ export default function Dashboard() {
         />
         <KPI
           label="Avg response"
-          value={metrics?.average_response_minutes != null ? `${metrics.average_response_minutes}m` : '—'}
+          value={metrics?.average_response_minutes != null ? formatDuration(metrics.average_response_minutes) : '—'}
           icon="⚡"
           tone="purple"
           hint="Time to first action"
