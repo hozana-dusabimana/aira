@@ -8,6 +8,18 @@ import type { CountByLabel, OverviewMetrics, TimelinePoint } from '../types';
 
 const COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#f97316'];
 
+function formatDuration(minutes: number): string {
+  if (minutes < 1) return '<1m';
+  if (minutes < 60) return `${Math.round(minutes)}m`;
+  const hours = minutes / 60;
+  if (hours < 24) return `${Math.round(hours * 10) / 10}h`;
+  const days = hours / 24;
+  if (days < 30) return `${Math.round(days * 10) / 10}d`;
+  const months = days / 30;
+  if (months < 12) return `${Math.round(months * 10) / 10}mo`;
+  return `${Math.round((months / 12) * 10) / 10}y`;
+}
+
 export default function Analytics() {
   const [metrics, setMetrics] = useState<OverviewMetrics | null>(null);
   const [byType, setByType] = useState<CountByLabel[]>([]);
@@ -28,7 +40,7 @@ export default function Analytics() {
         </div>
         <div className="card">
           <div className="metric-label">Avg response time</div>
-          <div className="metric">{metrics?.average_response_minutes ?? '—'} min</div>
+          <div className="metric">{metrics?.average_response_minutes != null ? formatDuration(metrics.average_response_minutes) : '—'}</div>
         </div>
         <div className="card">
           <div className="metric-label">Pending</div>
