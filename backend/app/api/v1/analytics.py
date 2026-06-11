@@ -21,19 +21,14 @@ from app.schemas.analytics import (
 
 router = APIRouter()
 
-# The canonical incident_type vocabulary the system produces (mirrors
-# ``SEVERITY_BY_TYPE`` in app.ai.incident_classifier). Kept here as a plain
-# tuple so the analytics router doesn't have to import the heavy AI module.
-# ``by_type`` always reports every one of these — including zero-count types —
-# so the dashboard/analytics charts show the full distribution, not just the
-# categories that happen to have data.
+# The reportable incident_type categories the system tracks. These are the two
+# real incident classes the self-trained classifier produces (``normal``/
+# ``general`` is explicitly NOT a reportable incident). ``by_type`` always
+# reports every one of these — including zero-count types — so the dashboard/
+# analytics charts show both categories, not just the one that has data.
 CANONICAL_INCIDENT_TYPES: tuple[str, ...] = (
     "fire",
     "traffic",
-    "violent_crime",
-    "vandalism",
-    "suspicious_activity",
-    "general",
 )
 
 
