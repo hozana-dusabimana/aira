@@ -1,0 +1,4 @@
+# Don't commit datasets or trained weights — they're large and/or sensitive.
+dataset/
+*.pt
+*.pth

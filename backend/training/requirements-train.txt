@@ -1,0 +1,10 @@
+# Dependencies for training the AIRA incident-type classifier.
+#   pip install -r training/requirements-train.txt
+#
+# torch/torchvision are the same versions used by the ML inference stack
+# (see ../requirements-ml.txt) so a trained checkpoint loads without surprises.
+torch==2.4.1
+torchvision==0.19.1
+Pillow>=10.0.0
+scikit-learn>=1.3.0   # confusion matrix / classification report in evaluate.py
+datasets>=2.19.0      # download_dataset.py — stream real images from HuggingFace

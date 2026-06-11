@@ -26,9 +26,41 @@ from typing import Any
 from PIL import Image, ImageStat
 
 from app.config import settings
-from app.ai.incident_classifier import classify_incident
+from app.ai.incident_classifier import classify_incident, scenario_and_severity_for_type
 
 logger = logging.getLogger(__name__)
+
+
+def _apply_trained_cnn(result: "AnalysisResult", image_bytes: bytes) -> None:
+    """Let our self-trained classifier override the incident_type in place.
+
+    Runs the CNN trained by ``backend/training/train_classifier.py``. When it is
+    enabled, loaded, and confident enough (``INCIDENT_CNN_MIN_CONFIDENCE``), its
+    prediction becomes the authoritative ``incident_type`` and we re-derive a
+    matching severity + narrative scenario. If the model is disabled/missing or
+    not confident, the rule-based classification is left untouched.
+    """
+    try:
+        from app.ai import incident_cnn
+    except ImportError:
+        return
+    pred = incident_cnn.predict(image_bytes)
+    if not pred:
+        return
+    cnn_type, cnn_conf = pred
+    if cnn_conf < getattr(settings, "INCIDENT_CNN_MIN_CONFIDENCE", 0.45):
+        logger.debug("CNN prediction %s too low-confidence (%.2f); keeping rules.", cnn_type, cnn_conf)
+        return
+    severity, scenario = scenario_and_severity_for_type(cnn_type, result.detected_objects)
+    logger.info(
+        "Self-trained CNN set incident_type=%s (%.2f), was %s.",
+        cnn_type, cnn_conf, result.incident_type,
+    )
+    result.incident_type = cnn_type
+    result.severity_level = severity
+    result.scenario = scenario
+    result.confidence_score = float(cnn_conf)
+    result.model_version = f"{result.model_version}+cnn"
 
 
 @dataclass
@@ -150,7 +182,7 @@ class StubAnalyzer:
         spread = max(avg_r, avg_g, avg_b) - min(avg_r, avg_g, avg_b)
         confidence = float(min(0.95, max(0.45, 0.55 + spread / 255 * 0.4)))
 
-        return AnalysisResult(
+        result = AnalysisResult(
             caption=caption,
             scene_label=scene,
             detected_objects=objs,
@@ -166,6 +198,8 @@ class StubAnalyzer:
                 "variance": round(variance, 2),
             },
         )
+        _apply_trained_cnn(result, image_bytes)
+        return result
 
 
 # ---------------------------------------------------------------------------
@@ -237,7 +271,7 @@ class MLAnalyzer:
         incident_type, severity, scenario = classify_incident(scene, objs, caption)
         confidence = max((o["confidence"] for o in objs), default=0.5)
 
-        return AnalysisResult(
+        result = AnalysisResult(
             caption=caption,
             scene_label=scene,
             detected_objects=objs,
@@ -248,6 +282,8 @@ class MLAnalyzer:
             model_version=self.model_version,
             raw_output={"num_detections": len(objs)},
         )
+        _apply_trained_cnn(result, image_bytes)
+        return result
 
 
 def get_analyzer():

@@ -125,6 +125,48 @@ _DEFAULT_SEVERITY: dict[str, str] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Incident-type -> (severity, narrative scenario) defaults.
+# Used when our self-trained CNN supplies the incident_type directly and we
+# still need a sensible severity + narrative template for it.
+# ---------------------------------------------------------------------------
+
+SEVERITY_BY_TYPE: dict[str, str] = {
+    "fire": "critical",
+    "traffic": "high",
+    "violent_crime": "critical",
+    "vandalism": "medium",
+    "suspicious_activity": "medium",
+    "general": "low",
+}
+
+
+def scenario_and_severity_for_type(
+    incident_type: str, detected_objects: Iterable[dict]
+) -> tuple[str, str]:
+    """Pick a (severity, scenario_key) consistent with ``incident_type``.
+
+    Detected objects (when available, e.g. from YOLO) refine the narrative —
+    whether people are present changes which template reads best.
+    """
+    buckets = _bucket_objects(list(detected_objects or []))
+    has_person = buckets["person"] > 0
+    severity = SEVERITY_BY_TYPE.get(incident_type, "low")
+    if incident_type == "fire":
+        scenario = "fire_with_people" if has_person else "fire_only"
+    elif incident_type == "violent_crime":
+        scenario = "armed_with_people" if has_person else "weapon_visible"
+    elif incident_type == "vandalism":
+        scenario = "property_damage" if has_person else "property_damage_no_people"
+    elif incident_type == "suspicious_activity":
+        scenario = "suspicious_with_person" if has_person else "low_light_suspicious"
+    elif incident_type == "traffic":
+        scenario = "traffic_scene"
+    else:
+        scenario = "general"
+    return severity, scenario
+
+
 def classify_incident(
     scene_label: str | None,
     detected_objects: Iterable[dict],

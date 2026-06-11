@@ -33,6 +33,17 @@ class Settings(BaseSettings):
     AI_ENABLED: bool = False
     AUTO_SEED: bool = True
 
+    # --- Self-trained incident classifier ------------------------------
+    # When enabled (and a trained checkpoint exists), our own CNN — trained by
+    # backend/training/train_classifier.py — predicts the incident_type instead
+    # of the rule-based guesser. Falls back to the rules if the model is missing
+    # or torch is unavailable, so this is safe to leave on. CLASSIFIER_WEIGHTS
+    # optionally overrides the default backend/weights/incident_classifier.pt.
+    INCIDENT_CNN_ENABLED: bool = False
+    CLASSIFIER_WEIGHTS: str = ""
+    # Minimum CNN confidence required to trust its prediction over the rules.
+    INCIDENT_CNN_MIN_CONFIDENCE: float = 0.45
+
     # Reject uploads the AI does not recognise as a reportable incident
     # (e.g. a person sitting in an office) so officers aren't disturbed by
     # non-incident photos. Set false to accept every upload.
