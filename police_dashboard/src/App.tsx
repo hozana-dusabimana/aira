@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import { useAuth } from './context/AuthContext';
 import Analytics from './pages/Analytics';
+import Citizens from './pages/Citizens';
 import Dashboard from './pages/Dashboard';
 import IncidentDetails from './pages/IncidentDetails';
 import IncidentsList from './pages/IncidentsList';
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/officers" element={<Officers />} />
+        <Route path="/citizens" element={<Citizens />} />
         <Route path="/status" element={<SystemStatusPage />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />

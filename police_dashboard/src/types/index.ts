@@ -23,8 +23,9 @@ export interface AuthResponse {
 export interface User {
   id: number;
   full_name: string;
-  email: string;
+  email?: string;
   phone?: string;
+  national_id?: string;
   role: UserRole;
   is_verified: boolean;
   is_active: boolean;
@@ -38,6 +39,10 @@ export interface Officer {
   station_id?: number;
   rank?: string;
   department?: string;
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  is_active?: boolean;
   created_at: string;
 }
 

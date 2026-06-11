@@ -31,3 +31,13 @@ class UserUpdate(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str = Field(min_length=8, max_length=128)
+
+
+class AdminUserUpdate(BaseModel):
+    """Admin-side edit of any user account. Only provided fields change."""
+
+    full_name: str | None = Field(default=None, min_length=2, max_length=150)
+    phone: str | None = None
+    national_id: str | None = None
+    is_active: bool | None = None
+    is_verified: bool | None = None

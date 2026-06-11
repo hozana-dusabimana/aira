@@ -24,6 +24,11 @@ class OfficerOut(BaseModel):
     station_id: int | None = None
     rank: str | None = None
     department: str | None = None
+    # Pulled from the linked user account so the dashboard can show/edit them.
+    full_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    is_active: bool = True
     created_at: datetime
 
 
@@ -36,3 +41,18 @@ class OfficerCreate(BaseModel):
     station_id: int | None = None
     rank: str | None = None
     department: str | None = None
+
+
+class OfficerUpdate(BaseModel):
+    """All fields optional — only the provided ones are changed."""
+
+    full_name: str | None = Field(default=None, min_length=2, max_length=150)
+    email: EmailStr | None = None
+    phone: str | None = None
+    # Optional password reset; leave empty to keep the current one.
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+    badge_number: str | None = Field(default=None, min_length=2, max_length=50)
+    station_id: int | None = None
+    rank: str | None = None
+    department: str | None = None
+    is_active: bool | None = None

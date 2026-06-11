@@ -114,19 +114,38 @@ export const spam = {
 };
 
 // --- Officers / Stations -------------------------------------
+export interface OfficerPayload {
+  full_name: string;
+  email: string;
+  phone?: string;
+  password: string;
+  badge_number: string;
+  station_id?: number;
+  rank?: string;
+  department?: string;
+}
+
 export const officers = {
   list: () => api.get<Officer[]>('/officers/').then((r) => r.data),
-  create: (payload: {
-    full_name: string;
-    email: string;
-    phone?: string;
-    password: string;
-    badge_number: string;
-    station_id?: number;
-    rank?: string;
-    department?: string;
-  }) => api.post<Officer>('/officers/', payload).then((r) => r.data),
+  create: (payload: OfficerPayload) =>
+    api.post<Officer>('/officers/', payload).then((r) => r.data),
+  update: (id: number, payload: Partial<OfficerPayload> & { is_active?: boolean }) =>
+    api.put<Officer>(`/officers/${id}`, payload).then((r) => r.data),
+  remove: (id: number) => api.delete(`/officers/${id}`).then((r) => r.data),
   stations: () => api.get<Station[]>('/officers/stations').then((r) => r.data),
+};
+
+// --- Citizens (admin user management) ------------------------
+export const citizens = {
+  list: () => api.get<User[]>('/users/', { params: { role: 'citizen' } }).then((r) => r.data),
+  update: (id: number, payload: {
+    full_name?: string;
+    phone?: string;
+    national_id?: string;
+    is_active?: boolean;
+    is_verified?: boolean;
+  }) => api.put<User>(`/users/${id}`, payload).then((r) => r.data),
+  remove: (id: number) => api.delete(`/users/${id}`).then((r) => r.data),
 };
 
 // --- Notifications -------------------------------------------

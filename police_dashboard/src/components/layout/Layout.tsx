@@ -15,6 +15,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/analytics': 'Analytics',
   '/reports': 'Reports',
   '/officers': 'Officers',
+  '/citizens': 'Citizens',
   '/status': 'System status',
   '/settings': 'Settings',
 };
@@ -82,6 +83,9 @@ export default function Layout() {
             <nav>
               <NavLink to="/officers">
                 <span className="nav-icon" aria-hidden>👮</span> Officers
+              </NavLink>
+              <NavLink to="/citizens">
+                <span className="nav-icon" aria-hidden>👥</span> Citizens
               </NavLink>
             </nav>
           </>
