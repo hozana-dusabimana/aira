@@ -2,7 +2,7 @@ name: Deploy dashboard
 
 # Redeploys ONLY the police dashboard when its code changes on main.
 # The backend and worker are left running untouched. Uses docker-compose.prod.yml.
-# Behind CloudPanel nginx -> aira.isiri.rw.
+# Behind nginx + Let's Encrypt -> aira.isiri.rw (new server 13.63.117.119).
 #
 # Host (13.63.117.119) and user (ubuntu) are hardcoded below.
 # Required repository secret:
