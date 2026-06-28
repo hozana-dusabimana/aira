@@ -39,13 +39,13 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
           chmod 600 ~/.ssh/ec2_key
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Deploy over SSH
         env:
           APP_DIR: ${{ vars.EC2_APP_DIR }}
         run: |
-          ssh -i ~/.ssh/ec2_key "$EC2_USER@$EC2_HOST" \
+          ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=accept-new "$EC2_USER@$EC2_HOST" \
             "APP_DIR='${APP_DIR}' bash -s" <<'EOF'
           set -euo pipefail
 
