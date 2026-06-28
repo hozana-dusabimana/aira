@@ -32,7 +32,7 @@ free port (+1, then +1 again, etc.) and record the final ports you chose.
 Make the CloudPanel reverse-proxy site point at whatever port you actually used.
 
 === SERVER FACTS (do NOT re-discover destructively) ===
-- Host: ubuntu@98.83.16.194 (Ubuntu 24.04, ARM64). SSH key is in the repo root
+- Host: ubuntu@13.63.117.119 (Ubuntu 24.04, ARM64). SSH key is in the repo root
   as `private-key.md` — it is gitignored; keep it that way.
 - Windows OpenSSH rejects the key's default ACL. Before `ssh -i private-key.md`,
   strip the inherited "Authenticated Users"/"Users" entries and grant the owner

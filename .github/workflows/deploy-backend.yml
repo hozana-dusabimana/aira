@@ -5,14 +5,14 @@ name: Deploy backend
 # Uses docker-compose.prod.yml (reuses the host MySQL + Redis; secrets in
 # .env.prod on the host). Behind CloudPanel nginx -> api-aira.isiri.rw.
 #
-# Host (98.83.16.194) and user (ubuntu) are hardcoded below.
+# Host (13.63.117.119) and user (ubuntu) are hardcoded below.
 # Required repository secret:
 #   EC2_SSH_KEY  - private SSH key (PEM contents) authorized on the EC2 host
 # Optional repository variable:
 #   EC2_APP_DIR  - absolute path to the repo on the host (default: $HOME/aira)
 
 env:
-  EC2_HOST: "98.83.16.194"
+  EC2_HOST: "13.63.117.119"
   EC2_USER: "ubuntu"
 
 on:
