@@ -100,35 +100,45 @@ Outputs (in `backend/weights/`): `incident_classifier.pt` (the trained model),
 
 ## 5. Performance (real measured results)
 
-_From `backend/weights/metrics.json` (a fast run: 350 images/class, 4 epochs).
-Retraining on the full dataset with more epochs raises this further —
-`python train_classifier.py --data dataset --epochs 15`._
+_From `backend/weights/metrics.json` — an accident-focused run on **5,500 real
+images** (2,500 accident / 1,500 fire / 1,500 normal), 8 epochs. The accident
+class was over-weighted on purpose so the model is reliable on road accidents._
 
 | Metric | Value |
 |---|---|
 | Architecture | ResNet-18 (ImageNet backbone frozen, head trained) |
 | Classes | accident, fire, normal |
-| Training images | 840 |
-| Validation images | 210 |
-| Epochs | 4 |
-| **Best validation accuracy** | **98.1%** |
+| Total images | 5,500 |
+| Training images | 4,400 |
+| Validation images | 1,100 |
+| Epochs | 8 |
+| **Best validation accuracy** | **99.8%** |
 
 Per-epoch curve (real, from `training_log.csv`):
 
 | Epoch | Train loss | Train acc | Val loss | Val acc |
 |---|---|---|---|---|
-| 1 | 0.646 | 72.3% | 0.275 | 96.2% |
-| 2 | 0.299 | 92.7% | 0.155 | 96.7% |
-| 3 | 0.216 | 94.5% | 0.112 | 97.6% |
-| 4 | 0.175 | 94.8% | 0.104 | **98.1%** |
+| 1 | 0.255 | 91.4% | 0.055 | 99.4% |
+| 2 | 0.112 | 96.4% | 0.030 | 99.6% |
+| 5 | 0.069 | 97.5% | 0.015 | 99.7% |
+| 8 | 0.067 | 97.6% | 0.012 | **99.8%** |
 
-Live sanity check — the trained model on one image per class:
+Per-class results (from `evaluate.py`) — note the **accident** row, the class
+the panel asked us to make reliable:
+
+| Class | Precision | Recall | F1 | Support |
+|---|---|---|---|---|
+| **accident** | **1.00** | **0.99** | **1.00** | 2,500 |
+| fire | 0.99 | 1.00 | 0.99 | 1,500 |
+| normal | 1.00 | 1.00 | 1.00 | 1,500 |
+
+Live sanity check — the trained model on real photos (deployed in production):
 
 | Input | Prediction | Confidence |
 |---|---|---|
-| fire photo | `fire` | 94.0% |
-| crash photo | `accident` | 72.6% |
-| normal scene | `normal` | 93.6% |
+| fire photo | `fire` | 99.8% |
+| crash photo | `accident` | 96.6%–99.9% |
+| normal scene | `normal` | 99.9% |
 
 Confusion matrix / per-class precision-recall:
 `python backend/training/evaluate.py --data dataset`.

@@ -213,13 +213,28 @@ class _CaptureScreenState extends State<CaptureScreen> {
   }
 
   Widget _buildPickerButtons() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        icon: const Icon(Icons.camera_alt_outlined),
-        label: const Text('Camera'),
-        onPressed: () => _pick(ImageSource.camera),
-      ),
+    // Two sources: live Camera, or an existing photo from the Gallery. The
+    // gallery option lets reporters attach a photo that was already taken (and
+    // lets the app be tested with downloaded sample incident images) — the app
+    // no longer forces a freshly-captured camera shot.
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            icon: const Icon(Icons.camera_alt_outlined),
+            label: const Text('Camera'),
+            onPressed: () => _pick(ImageSource.camera),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: OutlinedButton.icon(
+            icon: const Icon(Icons.photo_library_outlined),
+            label: const Text('Gallery'),
+            onPressed: () => _pick(ImageSource.gallery),
+          ),
+        ),
+      ],
     );
   }
 
