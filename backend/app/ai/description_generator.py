@@ -365,7 +365,10 @@ def _narrative_model_accident(g: dict[str, list[str]]) -> list[str]:
     NOT hedge with 'no vehicles / no clear collision' the way the generic
     traffic-scene template does.
     """
-    subj = _vehicle_phrase(g["vehicles"]) or "one or more vehicles"
+    # NB: _vehicle_phrase([]) returns the literal "no motor vehicles" (truthy),
+    # so guard on the list — when the detector found no vehicles we still assert
+    # a collision (the trained model says so), just generically.
+    subj = _vehicle_phrase(g["vehicles"]) if g["vehicles"] else "one or more vehicles"
     people = f" {_people_phrase(len(g['people']))} may be involved or nearby." if g["people"] else ""
     return [
         f"AI analysis indicates a road traffic accident — a collision involving "
