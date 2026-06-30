@@ -1,21 +1,20 @@
 {
-  "best_val_accuracy": 0.99394,
+  "best_val_accuracy": 0.99732,
   "final_epoch": {
     "epoch": 8,
-    "train_loss": 0.07903,
-    "train_acc": 0.97102,
-    "val_loss": 0.02364,
-    "val_acc": 0.99394
+    "train_loss": 0.00046,
+    "train_acc": 0.99978,
+    "val_loss": 0.02622,
+    "val_acc": 0.99643
   },
-  "num_classes": 3,
+  "num_classes": 2,
   "classes": [
     "accident",
-    "fire",
     "normal"
   ],
-  "num_images": 6600,
-  "train_images": 5280,
-  "val_images": 1320,
+  "num_images": 5600,
+  "train_images": 4480,
+  "val_images": 1120,
   "epochs": 8,
   "arch": "resnet18 (ImageNet pretrained backbone, trained head)"
 }

@@ -59,13 +59,24 @@ def _apply_trained_cnn(result: "AnalysisResult", image_bytes: bytes) -> None:
         from app.ai import incident_cnn
     except ImportError:
         return
-    pred = incident_cnn.predict(image_bytes)
-    if not pred:
+    probs = incident_cnn.predict_probs(image_bytes)
+    if not probs:
         return
-    raw_class, cnn_conf = pred
-    if cnn_conf < getattr(settings, "INCIDENT_CNN_MIN_CONFIDENCE", 0.45):
-        logger.debug("CNN prediction %s too low-confidence (%.2f); keeping rules.", raw_class, cnn_conf)
-        return
+
+    # Accident-biased decision: because non-accident photos score ~0 for the
+    # accident class, a clear-enough accident probability is trusted even when
+    # another class is technically top-1. This recovers borderline/distant
+    # accidents without letting non-accidents through.
+    acc_prob = probs.get("accident", 0.0)
+    accept_thr = getattr(settings, "ACCIDENT_ACCEPT_THRESHOLD", 0.25)
+    if acc_prob >= accept_thr:
+        raw_class, cnn_conf = "accident", acc_prob
+    else:
+        raw_class = max(probs, key=probs.get)
+        cnn_conf = probs[raw_class]
+        if cnn_conf < getattr(settings, "INCIDENT_CNN_MIN_CONFIDENCE", 0.45):
+            logger.debug("CNN prediction %s too low-confidence (%.2f); keeping rules.", raw_class, cnn_conf)
+            return
     cnn_type = CNN_CLASS_TO_INCIDENT_TYPE.get(raw_class, raw_class)
     severity, scenario = scenario_and_severity_for_type(cnn_type, result.detected_objects)
     logger.info(

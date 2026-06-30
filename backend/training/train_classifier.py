@@ -94,14 +94,24 @@ def build_transforms(transforms, img_size: int):
     return train_tf, eval_tf
 
 
-def build_model(torch, nn, models, num_classes: int):
-    """ResNet-18 backbone (ImageNet weights) with a fresh, trainable head."""
+def build_model(torch, nn, models, num_classes: int, unfreeze_backbone: bool = False):
+    """ResNet-18 backbone (ImageNet weights) with a fresh, trainable head.
+
+    With ``unfreeze_backbone`` the last residual block (``layer4``) is also
+    trainable, so the model can adapt its high-level features to OUR data —
+    e.g. actually learn what vehicle *damage* looks like — instead of only
+    re-weighting frozen ImageNet features. This noticeably helps hard cases
+    (clean/stylised crash photos) at the cost of a bit more training time.
+    """
     weights = models.ResNet18_Weights.IMAGENET1K_V1
     model = models.resnet18(weights=weights)
     # Freeze the convolutional backbone so we only train the new head. This is
     # what makes training fast and viable on a tiny dataset / CPU.
     for p in model.parameters():
         p.requires_grad = False
+    if unfreeze_backbone:
+        for p in model.layer4.parameters():
+            p.requires_grad = True
     in_features = model.fc.in_features
     model.fc = nn.Sequential(
         nn.Dropout(0.3),
@@ -144,6 +154,8 @@ def main() -> None:
     parser.add_argument("--val-split", type=float, default=0.2, help="Fraction held out for validation")
     parser.add_argument("--limit-per-class", type=int, default=0,
                         help="If >0, randomly use at most this many images per class (faster training)")
+    parser.add_argument("--unfreeze-backbone", action="store_true",
+                        help="Also fine-tune ResNet layer4 (better on hard cases like clean/stylised crashes)")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
@@ -196,12 +208,18 @@ def main() -> None:
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False)
 
-    model = build_model(torch, nn, models, len(class_names)).to(device)
+    model = build_model(torch, nn, models, len(class_names),
+                        unfreeze_backbone=args.unfreeze_backbone).to(device)
     criterion = nn.CrossEntropyLoss()
-    # Only the new head has requires_grad=True, so only those params are optimised.
-    optimizer = torch.optim.Adam(
-        (p for p in model.parameters() if p.requires_grad), lr=args.lr
-    )
+    # The head trains at the full LR; an unfrozen backbone block trains at a much
+    # lower LR so we adapt — not destroy — the pretrained features.
+    head_params = [p for n, p in model.named_parameters() if p.requires_grad and n.startswith("fc")]
+    backbone_params = [p for n, p in model.named_parameters() if p.requires_grad and not n.startswith("fc")]
+    groups = [{"params": head_params, "lr": args.lr}]
+    if backbone_params:
+        groups.append({"params": backbone_params, "lr": args.lr * 0.1})
+        logger.info("Fine-tuning %d backbone params (layer4) at lr=%.1e", len(backbone_params), args.lr * 0.1)
+    optimizer = torch.optim.Adam(groups)
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)

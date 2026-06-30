@@ -52,9 +52,18 @@ SOURCES: dict[str, list[dict]] = {
         {"repo": "prithivMLmods/OpenScene-Classification", "split": "train", "image_col": "image", "fast": True, "max": 1300},
         # Clean single objects incl. cars/trucks/ships/animals — teaches the
         # model that an intact vehicle/object on its own is not an accident.
+        # (This already supplies intact cars as negatives, so we don't pull the
+        # DrBimmer intact rows, which are slow to reach in its stream.)
         {"repo": "tanganke/stl10", "split": "train", "image_col": "image", "fast": True, "max": 1300},
     ],
     "accident": [
+        # Close-up DAMAGED cars (clean/studio shots WITH visible damage). Placed
+        # first so the model learns that crumpled/broken bodywork = accident even
+        # when the car is otherwise shiny and intact — fixes clean crashes being
+        # misread as "normal". DrBimmer streams slowly (~0.5s/img) and is ordered
+        # damaged-first, so we cap it; the damaged classes are front-loaded.
+        {"repo": "DrBimmer/comprehensive-car-damage", "split": "train", "image_col": "image", "fast": False,
+         "max": 700, "label_keep": ["F_Breakage", "F_Crushed", "R_Breakage", "R_Crushed"]},
         # Real vehicle-crash scenes (train/valid/test pulled separately to
         # maximise the number of distinct accident photos from this source).
         {"repo": "Endorphins/accidents", "split": "train", "image_col": "image", "fast": False},
@@ -67,18 +76,16 @@ SOURCES: dict[str, list[dict]] = {
         {"repo": "justjuu/traffic-accident-cctv-object-detection", "split": "validation", "image_col": "image", "fast": False},
         {"repo": "justjuu/traffic-accident-cctv-object-detection", "split": "test", "image_col": "image", "fast": False},
     ],
-    "fire": [
-        {"repo": "touati-kamel/forest-fire-dataset", "split": "train", "image_col": "image", "fast": False},
-    ],
 }
 
 # Per-class image target. Accident is over-weighted on purpose: the reviewer
 # asked us to make the model reliable on ACCIDENTS specifically, so we feed it
 # more accident examples than the other classes (the training split stays
 # usefully balanced because fire/normal still have plenty).
+# Two-class, road-accident-only model: ACCIDENT vs NORMAL (everything that is
+# not a road accident — including fire — falls in normal and is rejected).
 PER_CLASS_TARGET: dict[str, int] = {
-    "accident": 2500,
-    "fire": 1500,
+    "accident": 3000,
     "normal": 2600,
 }
 
@@ -119,6 +126,25 @@ def _download_from_source(load_dataset, name, spec, cls_dir, per_class, min_side
         logger.warning("[%s] could not open %s (%s). Trying next source.", name, repo, exc)
         return saved
 
+    # Optional per-source label filter: keep only rows whose class-label NAME is
+    # in ``label_keep`` (e.g. keep only the *damaged* classes of a car-damage
+    # dataset and drop the intact ones).
+    keep_names = spec.get("label_keep")
+    label_field = spec.get("label_field", "label")
+    cat_names = None
+    if keep_names:
+        try:
+            cat_names = ds.features[label_field].names
+        except Exception:  # noqa: BLE001
+            cat_names = None
+
+    def _row_kept(row) -> bool:
+        if not keep_names:
+            return True
+        lv = row.get(label_field)
+        lname = cat_names[lv] if (cat_names is not None and isinstance(lv, int)) else str(lv)
+        return lname in keep_names
+
     start = saved
     seen = 0
     for row in ds:
@@ -126,6 +152,8 @@ def _download_from_source(load_dataset, name, spec, cls_dir, per_class, min_side
             break
         seen += 1
         try:
+            if not _row_kept(row):
+                continue
             img = _to_pil(row.get(col))
             if img is None:
                 continue

@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     # Minimum CNN confidence required to trust its prediction over the rules.
     INCIDENT_CNN_MIN_CONFIDENCE: float = 0.45
 
+    # Accident-biased acceptance: treat a photo as an ACCIDENT when the model's
+    # accident probability is at least this, even if another class is top-1.
+    # Calibrated so non-accident photos (which score ~0 for accident) are never
+    # accepted, while borderline/distant accidents still get through.
+    ACCIDENT_ACCEPT_THRESHOLD: float = 0.25
+
     # Reject uploads the AI does not recognise as a reportable incident
     # (e.g. a person sitting in an office) so officers aren't disturbed by
     # non-incident photos. Set false to accept every upload.

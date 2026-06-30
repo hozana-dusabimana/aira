@@ -91,8 +91,8 @@ def _load() -> bool:
         return False
 
 
-def predict(image_bytes: bytes) -> Optional[tuple[str, float]]:
-    """Return ``(incident_type, confidence)`` from the trained CNN, or ``None``.
+def predict_probs(image_bytes: bytes) -> Optional[dict[str, float]]:
+    """Return ``{class_name: probability}`` from the trained CNN, or ``None``.
 
     ``None`` means "model not available / disabled" — caller should fall back to
     the rule-based classifier.
@@ -116,8 +116,16 @@ def predict(image_bytes: bytes) -> Optional[tuple[str, float]]:
         x = tf(img).unsqueeze(0)
         with torch.no_grad():
             probs = torch.softmax(_model(x), dim=1)[0]  # type: ignore[misc]
-        idx = int(probs.argmax().item())
-        return _classes[idx], float(probs[idx].item())
+        return {_classes[i]: float(probs[i].item()) for i in range(len(_classes))}
     except Exception as exc:  # noqa: BLE001
         logger.warning("Incident CNN inference failed (%s); falling back.", exc)
         return None
+
+
+def predict(image_bytes: bytes) -> Optional[tuple[str, float]]:
+    """Return ``(incident_type, confidence)`` for the top class, or ``None``."""
+    probs = predict_probs(image_bytes)
+    if not probs:
+        return None
+    top = max(probs, key=probs.get)
+    return top, probs[top]
