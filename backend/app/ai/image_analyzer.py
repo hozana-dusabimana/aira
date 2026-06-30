@@ -97,6 +97,12 @@ def _apply_trained_cnn(result: "AnalysisResult", image_bytes: bytes) -> None:
         tag = "cnn"
 
     severity, scenario = scenario_and_severity_for_type(chosen_type, result.detected_objects)
+    # The trained detector is the accident authority: when IT says this is an
+    # accident, describe it as a confirmed collision rather than a vague "traffic
+    # scene" — otherwise the narrative can contradict the label (e.g. claim "no
+    # vehicles" on an obvious crash the object detector happened to miss).
+    if chosen_type == "traffic":
+        scenario = "model_confirmed_accident"
     logger.info("Self-trained %s set incident_type=%s (%.2f), was %s.",
                 tag, chosen_type, conf, result.incident_type)
     result.incident_type = chosen_type

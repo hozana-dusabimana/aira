@@ -358,6 +358,21 @@ def _narrative_property_damage(g: dict[str, list[str]], with_people: bool) -> li
     ]
 
 
+def _narrative_model_accident(g: dict[str, list[str]]) -> list[str]:
+    """Concise narrative for an accident the trained detector is confident about.
+
+    Kept deliberately short and consistent with the 'traffic' label — it does
+    NOT hedge with 'no vehicles / no clear collision' the way the generic
+    traffic-scene template does.
+    """
+    subj = _vehicle_phrase(g["vehicles"]) or "one or more vehicles"
+    people = f" {_people_phrase(len(g['people']))} may be involved or nearby." if g["people"] else ""
+    return [
+        f"AI analysis indicates a road traffic accident — a collision involving "
+        f"{subj} with visible damage.{people}"
+    ]
+
+
 def _narrative_traffic_scene(g: dict[str, list[str]]) -> list[str]:
     """A road scene with vehicles/cyclists but no clear evidence of a crash."""
     if g["bicycles"]:
@@ -560,6 +575,8 @@ def generate_description(
         paragraphs = _narrative_property_damage(g, with_people=True)
     elif scenario == "property_damage_no_people":
         paragraphs = _narrative_property_damage(g, with_people=False)
+    elif scenario == "model_confirmed_accident":
+        paragraphs = _narrative_model_accident(g)
     elif scenario == "traffic_scene":
         paragraphs = _narrative_traffic_scene(g)
     elif scenario == "vehicle_present":
@@ -581,10 +598,6 @@ def generate_description(
 
     paragraphs.append(_severity_paragraph(result.severity_level))
     paragraphs.append(_action_paragraph(result.incident_type, scenario))
-    paragraphs.append(
-        "This report is being filed to capture the scene and circumstances "
-        "for the incident record and any subsequent investigation."
-    )
     paragraphs.append(_appendix(result))
 
     return "\n\n".join(paragraphs)
