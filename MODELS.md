@@ -12,27 +12,30 @@ trained, its real measured performance, and its benefits.
 
 ## 1. What it is
 
-A convolutional neural network (CNN) that looks at an incident photo and
-predicts which **incident type** it shows. We trained it on our own assembled
-dataset of real images.
+A convolutional neural network (CNN) that looks at a photo and decides whether
+it shows a **road accident**. We trained it on our own assembled dataset of real
+images. AIRA is scoped to road-accident reporting, so the model is a focused
+**two-class** classifier.
 
-**Classes (3):**
+**Classes (2):**
 
 | Class | Meaning | Backend `incident_type` |
 |---|---|---|
-| `fire` | active fire / heavy smoke | `fire` |
-| `accident` | road traffic accident / vehicle collision | **`traffic`** |
-| `normal` | NOT a reportable incident (ordinary scenes) | `general` |
+| `accident` | road traffic accident / vehicle collision | **`traffic`** (accepted) |
+| `normal` | anything that is NOT a road accident (ordinary scenes, intact vehicles, fire, etc.) | `general` (rejected) |
 
 The model's `accident` class **corresponds to the backend's `traffic` incident
 type** (and `normal` corresponds to `general`). This mapping is applied
 automatically by `CNN_CLASS_TO_INCIDENT_TYPE` in
 [`image_analyzer.py`](backend/app/ai/image_analyzer.py), so an `accident`
-prediction is recorded as a `traffic` incident.
+prediction is recorded as a `traffic` incident and accepted; everything else is
+rejected (`ACCEPTED_INCIDENT_TYPES=traffic`).
 
-The `normal` class is essential: it teaches the model what is *not* an incident,
+The `normal` class is essential: it teaches the model what is *not* an accident,
 so it doesn't flag every photo — this is what lets the system reject
-non-incident uploads instead of bothering officers with them.
+non-accident uploads instead of bothering officers with them. It deliberately
+contains **intact (undamaged) vehicles** as well as ordinary scenes, so the
+model learns to judge by **damage**, not by whether a car is present.
 
 ---
 
@@ -44,35 +47,41 @@ for training an image classifier on a focused dataset:
 
 1. Start from **ResNet-18**, whose convolutional layers come pretrained on
    ImageNet — they already understand generic vision (edges, textures, shapes).
-2. **Freeze** that backbone so it isn't disturbed.
-3. Replace the final layer with a **fresh classification head** sized to our 3
+2. **Freeze** most of the backbone so it isn't disturbed, but **fine-tune the
+   last residual block (`layer4`)** at a low learning rate so the model can
+   actually learn what *vehicle damage* looks like — not just re-weight generic
+   features. (This was the key to recognising clean/stylised crash photos.)
+3. Replace the final layer with a **fresh classification head** sized to our 2
    classes.
-4. **Train only that head** on *our* incident dataset.
+4. **Train** that head (full LR) plus `layer4` (1/10th LR) on *our* dataset.
 
-So the part **we trained** is the classification head, learned entirely on our
-own labelled fire / accident / normal images. The generic visual backbone is
-reused rather than relearned — this is what makes training fast (minutes, on a
-normal CPU) and viable on a focused dataset.
+So the part **we trained** is the classification head plus the top of the
+backbone, learned on our own labelled accident / normal images. The lower
+generic layers are reused rather than relearned — this keeps training viable on
+a focused dataset and a normal CPU.
 
 ```
-photo ─▶ [ ResNet-18 backbone ] ─▶ [ OUR trained head ] ─▶ fire | accident | normal
-            (generic features)        (learned on OUR data)        + confidence
+photo ─▶ [ ResNet-18 backbone ] ─▶ [ OUR trained head ] ─▶ accident | normal
+            (lower layers frozen,      (learned on OUR data)     + confidence
+             layer4 fine-tuned)
 ```
 
 ---
 
 ## 3. The training data (real, public)
 
-We assembled a balanced dataset, one folder per class:
+We assembled the dataset from several public sources, one folder per class
+(5,600 images: 3,000 accident / 2,600 normal):
 
-| Class | Source dataset (HuggingFace) | What the images show |
+| Class | Source datasets (HuggingFace) | What the images show |
 |---|---|---|
-| `fire` | `touati-kamel/forest-fire-dataset` | real fire & smoke frames |
-| `accident` | `Endorphins/accidents` | real vehicle crash / collision scenes |
-| `normal` | `prithivMLmods/OpenScene-Classification` | ordinary non-incident scenes |
+| `accident` | `DrBimmer/comprehensive-car-damage` (damaged cars) + `Endorphins/accidents` + `justjuu/traffic-accident-cctv-object-detection` | close-up vehicle **damage** + real crash scenes + CCTV/dashcam accident frames |
+| `normal` | `prithivMLmods/OpenScene-Classification` + `tanganke/stl10` | ordinary scenes + clean **intact** vehicles/objects |
 
-These are public datasets, each used for the class it depicts. The downloader
-that assembles them is
+The mix is deliberate: pairing **damaged** cars (accident) with **intact** cars
+(normal) forces the model to judge by damage, not by how clean or shiny a car
+looks. These are public datasets, each used for the class it depicts. The
+downloader that assembles them (with per-source caps and label filtering) is
 [`backend/training/download_dataset.py`](backend/training/download_dataset.py).
 
 ---
@@ -80,9 +89,9 @@ that assembles them is
 ## 4. How it was trained
 
 - Script: [`backend/training/train_classifier.py`](backend/training/train_classifier.py)
-- Backbone: ResNet-18 (ImageNet weights), convolutional layers frozen
-- Head: `Dropout(0.3) → Linear(512 → 3)`
-- Loss: cross-entropy; Optimizer: Adam (lr 1e-3)
+- Backbone: ResNet-18 (ImageNet weights); lower layers frozen, `layer4` fine-tuned
+- Head: `Dropout(0.3) → Linear(512 → 2)`
+- Loss: cross-entropy; Optimizer: Adam (head lr 1e-3, fine-tuned backbone lr 1e-4)
 - Augmentation: random flips, small rotations, colour jitter (robustness to
   varied real-world photos)
 - Split: 80% train / 20% validation; the best checkpoint (by validation
@@ -90,7 +99,7 @@ that assembles them is
 
 Command:
 ```bash
-python train_classifier.py --data dataset --epochs <N>
+python train_classifier.py --data dataset --epochs 8 --unfreeze-backbone
 ```
 
 Outputs (in `backend/weights/`): `incident_classifier.pt` (the trained model),
@@ -100,52 +109,49 @@ Outputs (in `backend/weights/`): `incident_classifier.pt` (the trained model),
 
 ## 5. Performance (real measured results)
 
-_From `backend/weights/metrics.json` — an accident-focused run on **6,600 real
-images** (2,500 accident / 1,500 fire / 2,600 normal), 8 epochs. The accident
-class is over-weighted so the model reliably detects road accidents, and the
-**negative ("normal") class is large and varied** (ordinary scenes + clean
-vehicles/objects) so non-accident photos are rejected instead of mis-flagged._
+_From `backend/weights/metrics.json` — a **two-class** (accident vs normal) run
+on **5,600 real images** (3,000 accident / 2,600 normal), 8 epochs, with the
+ResNet `layer4` fine-tuned. Pairing damaged cars (accident) with intact cars
+(normal) teaches the model to judge by **damage**._
 
 | Metric | Value |
 |---|---|
-| Architecture | ResNet-18 (ImageNet backbone frozen, head trained) |
-| Classes | accident, fire, normal |
-| Total images | 6,600 |
-| Training images | 5,280 |
-| Validation images | 1,320 |
+| Architecture | ResNet-18 (lower layers frozen, `layer4` fine-tuned) |
+| Classes | accident, normal |
+| Total images | 5,600 |
+| Training images | 4,480 |
+| Validation images | 1,120 |
 | Epochs | 8 |
-| **Best validation accuracy** | **99.4%** |
+| **Best validation accuracy** | **99.6%** |
 
-Per-epoch curve (real, from `training_log.csv`):
+### Generalisation test on UNSEEN images (the honest numbers)
 
-| Epoch | Train loss | Train acc | Val loss | Val acc |
-|---|---|---|---|---|
-| 1 | 0.319 | 89.2% | 0.078 | 98.3% |
-| 4 | 0.092 | 97.0% | 0.032 | 99.0% |
-| 8 | 0.079 | 97.1% | 0.024 | **99.4%** |
+Validation accuracy is on images from the same datasets, so we also tested on
+**300 images from completely different datasets the model never trained on**
+(accident: a separate CCTV accident set; normal: tiny-imagenet) and scored them
+against the **deployed** model:
 
-### Generalisation test on UNSEEN images (the honest number)
-
-Validation accuracy is on images from the same datasets. We also tested on
-**600 images from completely different datasets the model never trained on**
-(accident: a separate CCTV accident set; fire: a different smoke/fire set;
-normal: tiny-imagenet) and scored them against the **deployed** model:
-
-| Class | Recall on unseen images | What it means |
+| Class (unseen) | Recall | What it means |
 |---|---|---|
-| **accident** | **0.85** | catches most real accidents it has never seen |
-| fire | 0.80 | catches most fire |
 | **normal (reject)** | **1.00** | every non-accident image correctly rejected — **zero false positives** |
-| **overall accuracy** | **0.88** | on truly unseen data |
+| **accident** | **0.67** argmax → **0.76** with the acceptance threshold | catches most accidents; weaker only on *distant CCTV* frames (close-up/citizen-style crashes score ~1.0) |
 
-This is the design the project asked for: **detect accidents, reject everything
-else.** An earlier model that over-weighted easy validation accuracy scored 0.70
-overall on the same unseen set because it mis-flagged ordinary images as
-incidents; adding a large, varied negative class fixed that (normal recall
-0.24 → 1.00) at a small cost to accident recall.
+Because non-accident photos score essentially **0** for the accident class
+(held-out max 0.001), the backend uses an **accident-biased acceptance
+threshold** (`ACCIDENT_ACCEPT_THRESHOLD=0.25`): a photo is treated as an
+accident when its accident probability ≥ 0.25 even if `normal` is technically
+top-1. This recovers borderline/distant accidents (recall 0.67 → 0.76) **without
+any added false positives**.
+
+**Recognising clean/stylised crashes.** A glossy two-car crash photo initially
+scored only P(accident)=0.002 (the model had learned "shiny intact car =
+normal"). Adding damaged-car data lifted it to 0.169, and fine-tuning `layer4`
+lifted it to **0.996** — correctly accepted. This is why the model fine-tunes
+the backbone and pairs damaged vs intact cars.
 
 Live API confirmation (real photos POSTed to `https://api-aira.isiri.rw`):
-5/5 unseen accident photos → `traffic`, 5/5 unseen ordinary photos → rejected.
+the previously-rejected crash photo → `traffic` (accepted); non-accident photos
+→ rejected (422).
 
 Reproduce: `python backend/training/evaluate.py --data <held_out_set>
 --weights backend/weights/incident_classifier.pt`.
@@ -155,9 +161,9 @@ Reproduce: `python backend/training/evaluate.py --data <held_out_set>
 ## 6. Benefits
 
 - **Learns from examples, not hand-tuned rules.** It learns directly from
-  thousands of real fire / accident / normal photos rather than fixed heuristics.
-- **Data-driven non-incident filtering.** The `normal` class gives a learned way
-  to reject non-incident uploads, reducing false alarms for officers.
+  thousands of real accident and normal photos rather than fixed heuristics.
+- **Data-driven filtering.** The `normal` class gives a learned way to reject
+  non-accident uploads, reducing false alarms for officers.
 - **Improvable without code changes.** Add more images and retrain — behaviour
   improves with data, no logic to rewrite.
 - **Cheap and self-hosted.** Small model (ResNet-18), runs on CPU, no external
@@ -169,9 +175,12 @@ Reproduce: `python backend/training/evaluate.py --data <held_out_set>
 
 ## 7. Honest limitations
 
-- **Three classes.** It knows fire / accident / normal. Other categories (e.g.
-  weapons, vandalism) are out of its scope and would need their own training
-  data to be added.
+- **Two classes (accident-only scope).** It decides accident vs not-an-accident.
+  Other categories (fire, weapons, vandalism) are intentionally out of scope —
+  the app reports road accidents — and a non-accident photo is rejected.
+- **Distant CCTV accidents.** Recall is high on close-up/citizen-style crashes
+  but lower (~0.76) on distant CCTV frames where damage isn't visible; adding
+  more wide-scene accident data would close this.
 - **Domain gap.** Training images are public web/CCTV photos, not identical to
   local citizen phone photos; accuracy on real submissions will differ from
   validation accuracy. Adding in-domain images closes this gap.
@@ -247,13 +256,13 @@ over the image to detect patterns:
 
 - **Early layers** detect simple things — edges, corners, colour blobs.
 - **Middle layers** combine those into textures and shapes — wheels, flames, windows.
-- **Late layers** combine those into high-level concepts — "this looks like a car," "this looks like fire."
+- **Late layers** combine those into high-level concepts — "this looks like a car," "this car is crushed/damaged."
 
-A final layer turns those high-level features into class scores (for us: `fire`,
+A final layer turns those high-level features into class scores (for us:
 `accident`, `normal`).
 
 ```
-image → [conv layers: edges → textures → parts → objects] → [classifier] → fire / accident / normal
+image → [conv layers: edges → textures → parts → objects] → [classifier] → accident / normal
 ```
 
 ### The key idea — "residual" (skip) connections
@@ -276,10 +285,10 @@ one of the most-used architectures in computer vision.
 ### Why we used it in AIRA
 - **Pretrained on ImageNet** (1.2M images, 1000 classes) — its conv layers
   already know generic vision, so we reused them (transfer learning).
-- We **froze** that backbone and trained only a new final layer on our
-  fire/accident/normal images. The backbone extracts features; our trained head
-  makes the incident decision.
+- We froze its lower layers and **fine-tuned the top block (`layer4`)** plus a
+  new final layer on our accident/normal images. The backbone extracts features;
+  our fine-tuned top + head make the accident decision.
 - **Small + fast + free** — runs locally on CPU, no GPU, no external API.
 
-In short: ResNet-18 is the "eyes" (pretrained feature extractor), and the small
-classifier head we trained on top is the "judgment" (fire vs accident vs normal).
+In short: ResNet-18 is the "eyes" (pretrained feature extractor), and the
+fine-tuned top + classifier head we trained is the "judgment" (accident vs normal).
