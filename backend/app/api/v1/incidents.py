@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from math import asin, cos, radians, sin, sqrt
 from pathlib import Path
 from typing import Annotated
@@ -125,6 +125,33 @@ def submit_incident(
     is created with status ``analyzing`` and the analysis runs in a background
     task; the client receives the result via realtime events / polling. The
     mobile app uses the async mode so submission is instant."""
+    # Guard against accidental DOUBLE-submission of a single report (e.g. an
+    # auth-token refresh retry, a flaky-network retry where the server actually
+    # succeeded, or a double tap). If this reporter filed a report just seconds
+    # ago, return that one instead of creating a duplicate. This complements the
+    # location-based duplicate detection, which can't fire when a submission has
+    # no GPS.
+    window = getattr(settings, "RAPID_RESUBMIT_SECONDS", 30)
+    if window > 0:
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=window)
+        recent = db.scalar(
+            select(Incident)
+            .options(
+                selectinload(Incident.images),
+                selectinload(Incident.ai_analysis),
+                selectinload(Incident.reporter),
+            )
+            .where(Incident.reporter_id == current_user.id)
+            .where(Incident.created_at >= cutoff)
+            .order_by(Incident.created_at.desc())
+        )
+        if recent is not None:
+            logger.info(
+                "Rapid re-submit by reporter %s within %ss -> returning existing incident %s",
+                current_user.id, window, recent.id,
+            )
+            return recent
+
     image_url, _ = save_upload(image)
 
     try:

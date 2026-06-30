@@ -83,6 +83,12 @@ class Settings(BaseSettings):
     DUPLICATE_RADIUS_METERS: float = 150.0
     DUPLICATE_WINDOW_MINUTES: int = 180
 
+    # Guard against a single report being filed twice (token-refresh retry,
+    # network retry, double tap): a new submission from the SAME reporter within
+    # this many seconds returns the existing report instead of creating another.
+    # Set to 0 to disable. Independent of the location-based duplicate detection.
+    RAPID_RESUBMIT_SECONDS: int = 30
+
     # --- Rate limiting -------------------------------------------------
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_USE_REDIS: bool = False

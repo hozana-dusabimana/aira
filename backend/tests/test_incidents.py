@@ -18,6 +18,22 @@ def _submit_incident(client, token, **form):
     )
 
 
+def test_rapid_resubmit_returns_existing_incident(client, citizen_token, auth_header, monkeypatch):
+    """A double-submission (same reporter, seconds apart) returns the existing
+    report instead of creating a duplicate."""
+    from app.config import settings
+    monkeypatch.setattr(settings, "RAPID_RESUBMIT_SECONDS", 30)
+
+    first = _submit_incident(client, citizen_token)
+    assert first.status_code == 201, first.text
+    second = _submit_incident(client, citizen_token)
+    assert second.status_code == 201, second.text
+
+    assert second.json()["id"] == first.json()["id"]
+    listed = client.get("/api/v1/incidents/", headers=auth_header(citizen_token)).json()
+    assert len(listed) == 1
+
+
 def test_submit_incident_runs_ai_and_returns_description(client, citizen_token):
     r = _submit_incident(client, citizen_token)
     assert r.status_code == 201, r.text

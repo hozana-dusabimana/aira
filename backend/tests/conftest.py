@@ -13,6 +13,10 @@ os.environ["AUTO_SEED"] = "false"
 os.environ["UPLOAD_DIR"] = TMP_UPLOAD_DIR
 os.environ["RATE_LIMIT_ENABLED"] = "false"
 os.environ["EMAIL_ENABLED"] = "false"
+# Tests submit several incidents from the same reporter in quick succession; the
+# rapid-resubmit guard would collapse them. Disable it here and cover it with a
+# dedicated test that enables it explicitly.
+os.environ["RAPID_RESUBMIT_SECONDS"] = "0"
 
 import pytest
 from fastapi.testclient import TestClient
