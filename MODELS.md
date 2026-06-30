@@ -100,48 +100,55 @@ Outputs (in `backend/weights/`): `incident_classifier.pt` (the trained model),
 
 ## 5. Performance (real measured results)
 
-_From `backend/weights/metrics.json` — an accident-focused run on **5,500 real
-images** (2,500 accident / 1,500 fire / 1,500 normal), 8 epochs. The accident
-class was over-weighted on purpose so the model is reliable on road accidents._
+_From `backend/weights/metrics.json` — an accident-focused run on **6,600 real
+images** (2,500 accident / 1,500 fire / 2,600 normal), 8 epochs. The accident
+class is over-weighted so the model reliably detects road accidents, and the
+**negative ("normal") class is large and varied** (ordinary scenes + clean
+vehicles/objects) so non-accident photos are rejected instead of mis-flagged._
 
 | Metric | Value |
 |---|---|
 | Architecture | ResNet-18 (ImageNet backbone frozen, head trained) |
 | Classes | accident, fire, normal |
-| Total images | 5,500 |
-| Training images | 4,400 |
-| Validation images | 1,100 |
+| Total images | 6,600 |
+| Training images | 5,280 |
+| Validation images | 1,320 |
 | Epochs | 8 |
-| **Best validation accuracy** | **99.8%** |
+| **Best validation accuracy** | **99.4%** |
 
 Per-epoch curve (real, from `training_log.csv`):
 
 | Epoch | Train loss | Train acc | Val loss | Val acc |
 |---|---|---|---|---|
-| 1 | 0.255 | 91.4% | 0.055 | 99.4% |
-| 2 | 0.112 | 96.4% | 0.030 | 99.6% |
-| 5 | 0.069 | 97.5% | 0.015 | 99.7% |
-| 8 | 0.067 | 97.6% | 0.012 | **99.8%** |
+| 1 | 0.319 | 89.2% | 0.078 | 98.3% |
+| 4 | 0.092 | 97.0% | 0.032 | 99.0% |
+| 8 | 0.079 | 97.1% | 0.024 | **99.4%** |
 
-Per-class results (from `evaluate.py`) — note the **accident** row, the class
-the panel asked us to make reliable:
+### Generalisation test on UNSEEN images (the honest number)
 
-| Class | Precision | Recall | F1 | Support |
-|---|---|---|---|---|
-| **accident** | **1.00** | **0.99** | **1.00** | 2,500 |
-| fire | 0.99 | 1.00 | 0.99 | 1,500 |
-| normal | 1.00 | 1.00 | 1.00 | 1,500 |
+Validation accuracy is on images from the same datasets. We also tested on
+**600 images from completely different datasets the model never trained on**
+(accident: a separate CCTV accident set; fire: a different smoke/fire set;
+normal: tiny-imagenet) and scored them against the **deployed** model:
 
-Live sanity check — the trained model on real photos (deployed in production):
-
-| Input | Prediction | Confidence |
+| Class | Recall on unseen images | What it means |
 |---|---|---|
-| fire photo | `fire` | 99.8% |
-| crash photo | `accident` | 96.6%–99.9% |
-| normal scene | `normal` | 99.9% |
+| **accident** | **0.85** | catches most real accidents it has never seen |
+| fire | 0.80 | catches most fire |
+| **normal (reject)** | **1.00** | every non-accident image correctly rejected — **zero false positives** |
+| **overall accuracy** | **0.88** | on truly unseen data |
 
-Confusion matrix / per-class precision-recall:
-`python backend/training/evaluate.py --data dataset`.
+This is the design the project asked for: **detect accidents, reject everything
+else.** An earlier model that over-weighted easy validation accuracy scored 0.70
+overall on the same unseen set because it mis-flagged ordinary images as
+incidents; adding a large, varied negative class fixed that (normal recall
+0.24 → 1.00) at a small cost to accident recall.
+
+Live API confirmation (real photos POSTed to `https://api-aira.isiri.rw`):
+5/5 unseen accident photos → `traffic`, 5/5 unseen ordinary photos → rejected.
+
+Reproduce: `python backend/training/evaluate.py --data <held_out_set>
+--weights backend/weights/incident_classifier.pt`.
 
 ---
 

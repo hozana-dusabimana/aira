@@ -42,9 +42,17 @@ logger = logging.getLogger("download")
 # ``accident`` is the class the reviewer asked us to focus on, so it has the
 # most sources — we pull crash/collision photos from several datasets to give
 # the model the widest, most varied view of real accident scenes.
+#
+# ``normal`` is the negative class. It must be DIVERSE — ordinary scenes AND
+# clean everyday objects/vehicles — so the model learns that a non-crashed car,
+# a building, a person or an animal is NOT an accident and gets rejected. Each
+# negative source is capped (``max``) so no single dataset dominates the class.
 SOURCES: dict[str, list[dict]] = {
     "normal": [
-        {"repo": "prithivMLmods/OpenScene-Classification", "split": "train", "image_col": "image", "fast": True},
+        {"repo": "prithivMLmods/OpenScene-Classification", "split": "train", "image_col": "image", "fast": True, "max": 1300},
+        # Clean single objects incl. cars/trucks/ships/animals — teaches the
+        # model that an intact vehicle/object on its own is not an accident.
+        {"repo": "tanganke/stl10", "split": "train", "image_col": "image", "fast": True, "max": 1300},
     ],
     "accident": [
         # Real vehicle-crash scenes (train/valid/test pulled separately to
@@ -71,7 +79,7 @@ SOURCES: dict[str, list[dict]] = {
 PER_CLASS_TARGET: dict[str, int] = {
     "accident": 2500,
     "fire": 1500,
-    "normal": 1500,
+    "normal": 2600,
 }
 
 
@@ -99,8 +107,12 @@ def _download_from_source(load_dataset, name, spec, cls_dir, per_class, min_side
     """
     repo, split, col = spec["repo"], spec["split"], spec["image_col"]
     speed = "fast (parquet)" if spec.get("fast") else "slower (per-file index) — be patient"
-    logger.info("[%s] streaming %s split=%s [%s] target=%d (have %d) ...",
-                name, repo, split, speed, per_class, saved)
+    # Optional per-source cap so one dataset can't dominate a class.
+    cap = per_class
+    if spec.get("max"):
+        cap = min(per_class, saved + int(spec["max"]))
+    logger.info("[%s] streaming %s split=%s [%s] target=%d cap=%d (have %d) ...",
+                name, repo, split, speed, per_class, cap, saved)
     try:
         ds = load_dataset(repo, name=spec.get("config"), split=split, streaming=True)
     except Exception as exc:  # noqa: BLE001
@@ -110,7 +122,7 @@ def _download_from_source(load_dataset, name, spec, cls_dir, per_class, min_side
     start = saved
     seen = 0
     for row in ds:
-        if saved >= per_class:
+        if saved >= cap:
             break
         seen += 1
         try:
@@ -162,8 +174,8 @@ def main() -> None:
     parser.add_argument("--per-class", type=int, default=0,
                         help="Override target images per class. 0 (default) uses the per-class "
                              "targets in PER_CLASS_TARGET (accident is weighted higher).")
-    parser.add_argument("--min-side", type=int, default=80, help="Skip images whose shorter side is below this")
-    parser.add_argument("--min-pixels", type=int, default=12000,
+    parser.add_argument("--min-side", type=int, default=64, help="Skip images whose shorter side is below this")
+    parser.add_argument("--min-pixels", type=int, default=8000,
                         help="Skip images with fewer than this many total pixels (drops thumbnails)")
     parser.add_argument("--classes", nargs="*", default=list(SOURCES.keys()),
                         help="Subset of classes to download (default: all configured)")
