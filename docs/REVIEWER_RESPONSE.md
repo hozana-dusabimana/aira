@@ -122,6 +122,13 @@ normal:    5/5 unseen photos -> REJECTED (422) (non-incident, not shown to offic
 The model is enabled in production (`INCIDENT_CNN_ENABLED=true`); weights live in
 the `aira_ml_weights` Docker volume.
 
+**Scope enforcement (accident-only):** the app is strictly a road-accident
+reporting tool, so the backend accepts **only** accident reports
+(`incident_type=traffic`). Fire, ordinary scenes and anything else are rejected
+as non-reportable, even though the model can still tell them apart. This is
+controlled by the `ACCEPTED_INCIDENT_TYPES` setting (default `traffic`); set it
+to `traffic,fire` if fire should also be accepted later.
+
 > Honesty note (kept from `MODELS.md`): YOLOv8 (detection) and BLIP (captioning)
 > are standard pretrained models we use off the shelf. The model **we trained**
 > is the incident-type classifier — present it as exactly that.

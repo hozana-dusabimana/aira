@@ -21,14 +21,16 @@ from app.services.notification_service import create_notification
 
 logger = logging.getLogger(__name__)
 
-# Categories that mean "the AI could not recognise a real incident". Uploads
-# that classify into one of these (or have no type at all) are treated as
-# non-incidents so officers are not disturbed by them.
-_NON_INCIDENT_TYPES = {"", "general"}
-
-
 def looks_like_incident(incident: Incident) -> bool:
-    return (incident.incident_type or "").strip().lower() not in _NON_INCIDENT_TYPES
+    """True only when the report is a TYPE the app accepts.
+
+    The app is scoped to road accidents, so by default only ``traffic``
+    (the model's ``accident`` class) is accepted; ``fire``, ``general``
+    (``normal``) and anything else are treated as non-reportable and rejected.
+    The accepted set is configurable via ``ACCEPTED_INCIDENT_TYPES``.
+    """
+    itype = (incident.incident_type or "").strip().lower()
+    return itype in settings.accepted_incident_types_set
 
 
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

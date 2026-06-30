@@ -49,6 +49,12 @@ class Settings(BaseSettings):
     # non-incident photos. Set false to accept every upload.
     INCIDENT_VALIDATION_ENABLED: bool = True
 
+    # Allow-list of incident_type values that count as a reportable incident.
+    # Everything else (including the model's `fire`/`general`) is rejected. The
+    # app is scoped to ROAD ACCIDENTS, so by default only `traffic` is accepted.
+    # Comma-separated; e.g. set to "traffic,fire" to also accept fire reports.
+    ACCEPTED_INCIDENT_TYPES: str = "traffic"
+
     # --- Duplicate detection ------------------------------------------
     # When several people photograph the SAME accident, only the first report
     # becomes an active incident. A later report of the same incident_type
@@ -85,6 +91,10 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> List[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+
+    @property
+    def accepted_incident_types_set(self) -> set[str]:
+        return {t.strip().lower() for t in self.ACCEPTED_INCIDENT_TYPES.split(",") if t.strip()}
 
 
 @lru_cache(maxsize=1)

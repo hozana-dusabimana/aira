@@ -162,8 +162,8 @@ def submit_incident(
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=(
-                    "This photo doesn't appear to show a reportable incident. "
-                    "Please capture the accident, fire or emergency scene and try again."
+                    "This photo doesn't appear to show a road accident. "
+                    "Please capture the accident scene clearly and try again."
                 ),
             )
         if outcome == "duplicate":
