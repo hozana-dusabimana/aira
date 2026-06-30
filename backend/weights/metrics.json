@@ -1,11 +1,11 @@
 {
-  "best_val_accuracy": 0.98095,
+  "best_val_accuracy": 0.99818,
   "final_epoch": {
-    "epoch": 4,
-    "train_loss": 0.17485,
-    "train_acc": 0.94762,
-    "val_loss": 0.10441,
-    "val_acc": 0.98095
+    "epoch": 8,
+    "train_loss": 0.06736,
+    "train_acc": 0.97636,
+    "val_loss": 0.01159,
+    "val_acc": 0.99818
   },
   "num_classes": 3,
   "classes": [
@@ -13,9 +13,9 @@
     "fire",
     "normal"
   ],
-  "num_images": 1050,
-  "train_images": 840,
-  "val_images": 210,
-  "epochs": 4,
+  "num_images": 5500,
+  "train_images": 4400,
+  "val_images": 1100,
+  "epochs": 8,
   "arch": "resnet18 (ImageNet pretrained backbone, trained head)"
 }
