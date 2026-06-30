@@ -135,8 +135,15 @@ def auth_header():
     return _hdr
 
 
-def make_test_image_bytes(color: tuple[int, int, int] = (255, 80, 30)) -> bytes:
-    """Create an in-memory JPEG of a single color for testing."""
+def make_test_image_bytes(color: tuple[int, int, int] = (120, 120, 120)) -> bytes:
+    """Create an in-memory JPEG of a single color for testing.
+
+    The default is a neutral grey, which the StubAnalyzer classifies as a road
+    *traffic* scene — the only incident type the app accepts (it is scoped to
+    road accidents). Submission tests therefore succeed; tests that need a
+    different classification pass an explicit colour (e.g. red ⇒ fire) or
+    monkeypatch the analyzer.
+    """
     from io import BytesIO
     from PIL import Image
     img = Image.new("RGB", (256, 256), color=color)
