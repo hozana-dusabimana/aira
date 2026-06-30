@@ -1,3 +1,4 @@
+import hashlib
 import logging
 from datetime import datetime, timedelta, timezone
 from math import asin, cos, radians, sin, sqrt
@@ -39,7 +40,12 @@ from app.schemas.incident import (
 )
 from app.core.rate_limit import INCIDENT_SUBMIT_LIMIT, limiter
 from app.realtime import broadcaster
-from app.services.ai_service import analyze_incident_sync, emit_incident_event
+from app.services.ai_service import (
+    _read_image_bytes,
+    analyze_incident_sync,
+    delete_upload_file,
+    emit_incident_event,
+)
 from app.services.file_service import save_upload
 from app.services.notification_service import create_notification
 
@@ -125,14 +131,17 @@ def submit_incident(
     is created with status ``analyzing`` and the analysis runs in a background
     task; the client receives the result via realtime events / polling. The
     mobile app uses the async mode so submission is instant."""
-    # Guard against accidental DOUBLE-submission of a single report (e.g. an
-    # auth-token refresh retry, a flaky-network retry where the server actually
-    # succeeded, or a double tap). If this reporter filed a report just seconds
-    # ago, return that one instead of creating a duplicate. This complements the
-    # location-based duplicate detection, which can't fire when a submission has
-    # no GPS.
+    image_url, contents = save_upload(image)
+
+    # Guard against accidental DOUBLE-submission of a SINGLE report (the app
+    # re-sending the same photo via a token-refresh/network retry, or a double
+    # tap). Only collapse when the uploaded image is BYTE-IDENTICAL to a report
+    # this reporter filed in the last few seconds — so genuinely different
+    # photos are each still validated. Complements the location-based duplicate
+    # detection (which can't fire when a submission has no GPS).
     window = getattr(settings, "RAPID_RESUBMIT_SECONDS", 30)
     if window > 0:
+        new_hash = hashlib.sha256(contents).hexdigest()
         cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=window)
         recent = db.scalar(
             select(Incident)
@@ -145,14 +154,15 @@ def submit_incident(
             .where(Incident.created_at >= cutoff)
             .order_by(Incident.created_at.desc())
         )
-        if recent is not None:
-            logger.info(
-                "Rapid re-submit by reporter %s within %ss -> returning existing incident %s",
-                current_user.id, window, recent.id,
-            )
-            return recent
-
-    image_url, _ = save_upload(image)
+        if recent is not None and recent.image_url:
+            recent_bytes = _read_image_bytes(recent.image_url)
+            if recent_bytes is not None and hashlib.sha256(recent_bytes).hexdigest() == new_hash:
+                logger.info(
+                    "Rapid re-submit of an identical image by reporter %s -> returning incident %s",
+                    current_user.id, recent.id,
+                )
+                delete_upload_file(image_url)  # discard the just-saved duplicate
+                return recent
 
     try:
         sev = SeverityLevel(severity_level)
