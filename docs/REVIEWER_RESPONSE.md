@@ -80,35 +80,51 @@ _Numbers below come from the actual retraining run on the project server
 (`backend/weights/metrics.json` + `training_log.csv` and the `evaluate.py`
 report); they are reproducible with the commands at the end of this doc._
 
-| Metric | Previous model | Retrained (accident-focused) |
+| Metric | Old model | Final model |
 |---|---|---|
-| Total images | 1,050 | **5,500** |
+| Total images | 1,050 | **6,600** |
 | Accident images | ~350 | **2,500** |
-| Held-out validation accuracy | 0.981 | **0.998** (1,100-image val split) |
-| **Accident recall** | _not reported_ | **0.99** |
-| **Accident precision** | _not reported_ | **1.00** |
+| Negative (normal) images | ~350 | **2,600** (scenes + clean vehicles/objects) |
+| Validation accuracy | 0.981 | **0.994** |
 | Epochs | 4 | 8 |
 
-Per-class report (from `evaluate.py` over the full labelled set):
+### The real test — generalisation on UNSEEN images + the live API
+
+Validation accuracy alone can be misleading, so we built a **held-out test set
+of 600 images from completely different datasets the model never trained on**
+(accident: a separate CCTV accident set; fire: a different fire/smoke set;
+normal: tiny-imagenet) and scored them against the **deployed** model. We also
+POSTed samples to the real public API. This is the design the project requires:
+**detect accidents, reject everything else.**
+
+| Class (unseen) | First retrain | **Final model** |
+|---|---|---|
+| accident recall | 0.93 | 0.85 |
+| fire recall | 0.94 | 0.80 |
+| **normal — correctly REJECTED** | 0.24 | **1.00** |
+| **overall accuracy** | 0.70 | **0.88** |
+
+The first retrain maximised validation accuracy (0.998) but **over-flagged
+ordinary images as incidents** — only 24% of non-accident photos were rejected.
+Adding a large, varied negative class fixed this: **non-accident images are now
+rejected 100% of the time (zero false positives)**, with accidents still
+detected well.
+
+**Live API confirmation** (`POST https://api-aira.isiri.rw`, full pipeline, test
+incidents deleted afterwards):
 
 ```
-              precision    recall  f1-score   support
-    accident       1.00      0.99      1.00      2500
-        fire       0.99      1.00      0.99      1500
-      normal       1.00      1.00      1.00      1500
-    accuracy                           1.00      5500
-
-Confusion matrix (rows=true, cols=pred), classes [accident, fire, normal]:
-   accident [2486   12    2]   <- 2486/2500 accidents correctly classified
-   fire     [   3 1497    0]
-   normal   [   2    1 1497]
+accident:  5/5 unseen photos -> traffic       (detected)
+fire:      4/5                -> fire
+normal:    5/5 unseen photos -> REJECTED (422) (non-incident, not shown to officers)
 ```
 
-**Live verification (production backend):** three real accident photos were fed
-through the deployed model and all returned `accident` (confidence 0.97–1.00),
-mapped to the `traffic` incident type; a fire photo returned `fire` and an
-ordinary scene returned `normal`. The model is enabled in production
-(`INCIDENT_CNN_ENABLED=true`).
+The model is enabled in production (`INCIDENT_CNN_ENABLED=true`); weights live in
+the `aira_ml_weights` Docker volume.
+
+> Honesty note (kept from `MODELS.md`): YOLOv8 (detection) and BLIP (captioning)
+> are standard pretrained models we use off the shelf. The model **we trained**
+> is the incident-type classifier — present it as exactly that.
 
 > Honesty note (kept from `MODELS.md`): YOLOv8 (detection) and BLIP (captioning)
 > are standard pretrained models we use off the shelf. The model **we trained**
