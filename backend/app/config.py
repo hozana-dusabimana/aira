@@ -50,6 +50,16 @@ class Settings(BaseSettings):
     # accepted, while borderline/distant accidents still get through.
     ACCIDENT_ACCEPT_THRESHOLD: float = 0.25
 
+    # --- CLIP zero-shot accident detector ------------------------------
+    # When enabled (and open_clip is installed), CLIP decides accident vs normal
+    # instead of the ResNet CNN. It is far more robust to wide pileups, close-up
+    # crashes and stylised photos. A photo is an accident when its CLIP "margin"
+    # (accident-prompt similarity minus normal-prompt similarity) >= the
+    # threshold. Falls back to the CNN/rules if CLIP is unavailable.
+    CLIP_CLASSIFIER_ENABLED: bool = False
+    # Accept as an accident when the CLIP probe's P(accident) >= this.
+    CLIP_ACCEPT_THRESHOLD: float = 0.5
+
     # Reject uploads the AI does not recognise as a reportable incident
     # (e.g. a person sitting in an office) so officers aren't disturbed by
     # non-incident photos. Set false to accept every upload.

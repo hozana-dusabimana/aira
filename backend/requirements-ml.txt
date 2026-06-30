@@ -9,3 +9,4 @@ torch==2.4.1
 torchvision==0.19.1
 transformers==4.45.1
 ultralytics==8.3.10
+open_clip_torch==2.24.0   # CLIP zero-shot accident detector (app/ai/clip_classifier.py)
