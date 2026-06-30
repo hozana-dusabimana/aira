@@ -56,6 +56,12 @@ class _IncidentResultScreenState extends State<IncidentResultScreen> {
 
   bool get _isRejected => _incident.status == 'rejected' || _discarded;
 
+  // A 'rejected' status that was NOT discarded (404) means the report was a
+  // DUPLICATE of an accident already reported nearby — the row is kept and
+  // linked to the original. That is very different from a non-incident photo,
+  // so we surface it with a friendly "already reported" message.
+  bool get _isDuplicate => _incident.status == 'rejected' && !_discarded;
+
   void _startPolling() {
     _poll?.cancel();
     _poll = Timer.periodic(_pollInterval, (_) => _tick());
@@ -107,7 +113,9 @@ class _IncidentResultScreenState extends State<IncidentResultScreen> {
     final dateFmt = DateFormat.yMMMd().add_jm();
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isRejected ? 'Report not accepted' : 'Report submitted'),
+        title: Text(_isDuplicate
+            ? 'Already reported'
+            : (_isRejected ? 'Report not accepted' : 'Report submitted')),
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -199,11 +207,12 @@ class _IncidentResultScreenState extends State<IncidentResultScreen> {
   }
 
   Widget _buildRejectedHeader() {
+    final accent = _isDuplicate ? AiraColors.primary : AiraColors.danger;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AiraColors.danger.withValues(alpha: 0.10),
-        border: Border.all(color: AiraColors.danger.withValues(alpha: 0.4)),
+        color: accent.withValues(alpha: 0.10),
+        border: Border.all(color: accent.withValues(alpha: 0.4)),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -211,21 +220,24 @@ class _IncidentResultScreenState extends State<IncidentResultScreen> {
           Container(
             width: 44,
             height: 44,
-            decoration: const BoxDecoration(
-              color: AiraColors.danger,
+            decoration: BoxDecoration(
+              color: _isDuplicate ? AiraColors.primary : AiraColors.danger,
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.report_gmailerrorred,
-                color: Colors.white, size: 26),
+            child: Icon(
+              _isDuplicate ? Icons.how_to_reg : Icons.report_gmailerrorred,
+              color: Colors.white,
+              size: 26,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Report not accepted',
-                  style: TextStyle(
+                Text(
+                  _isDuplicate ? 'Already reported' : 'Report not accepted',
+                  style: const TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                     color: AiraColors.navy,
@@ -233,8 +245,11 @@ class _IncidentResultScreenState extends State<IncidentResultScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'The photo could not be confirmed as a reportable incident, '
-                  'so officers were not notified.',
+                  _isDuplicate
+                      ? 'This accident has already been reported nearby, so '
+                          'officers are already aware. Thank you for helping.'
+                      : "This photo doesn't appear to show a road accident, "
+                          'so officers were not notified.',
                   style: TextStyle(
                     color: Colors.grey.shade700,
                     fontSize: 12.5,
@@ -256,18 +271,22 @@ class _IncidentResultScreenState extends State<IncidentResultScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'What to do',
-              style: TextStyle(
+            Text(
+              _isDuplicate ? 'Good to know' : 'What to do',
+              style: const TextStyle(
                 fontWeight: FontWeight.w700,
                 color: AiraColors.navy,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Please capture the accident, fire, or emergency scene clearly '
-              'and submit again. Make sure the incident itself is visible in '
-              'the photo.',
+              _isDuplicate
+                  ? 'Someone already reported this accident nearby, so it is '
+                      'linked to the existing report and officers are aware. '
+                      'You do not need to report it again.'
+                  : 'Please capture the road accident scene clearly and submit '
+                      'again, making sure the damaged vehicles are visible in '
+                      'the photo.',
               style: TextStyle(
                 fontSize: 14,
                 height: 1.5,
