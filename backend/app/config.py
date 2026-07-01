@@ -71,6 +71,9 @@ class Settings(BaseSettings):
     OPENROUTER_MODEL: str = "google/gemma-4-31b-it:free"
     OPENROUTER_ACCEPT_THRESHOLD: float = 0.5
     OPENROUTER_TIMEOUT: int = 30
+    # Retry on free-tier rate limits (429) before falling back to the CNN.
+    OPENROUTER_MAX_RETRIES: int = 3
+    OPENROUTER_RETRY_BACKOFF: float = 3.0
 
     # Reject uploads the AI does not recognise as a reportable incident
     # (e.g. a person sitting in an office) so officers aren't disturbed by

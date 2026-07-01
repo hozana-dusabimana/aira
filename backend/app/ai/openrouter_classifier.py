@@ -87,8 +87,20 @@ def predict_accident_prob(image_bytes: bytes) -> Optional[float]:
             "X-Title": "AIRA",
         }
         timeout = float(getattr(settings, "OPENROUTER_TIMEOUT", 30))
+        # Free-tier models are rate-limited (429) — retry a few times with
+        # backoff before giving up (then the caller falls back to the CNN).
+        attempts = int(getattr(settings, "OPENROUTER_MAX_RETRIES", 3))
+        backoff = float(getattr(settings, "OPENROUTER_RETRY_BACKOFF", 3.0))
+        import time
+        resp = None
         with httpx.Client(timeout=timeout) as client:
-            resp = client.post(_ENDPOINT, headers=headers, json=payload)
+            for i in range(max(1, attempts)):
+                resp = client.post(_ENDPOINT, headers=headers, json=payload)
+                if resp.status_code != 429:
+                    break
+                if i < attempts - 1:
+                    logger.info("OpenRouter 429 (attempt %d/%d); retrying in %.1fs", i + 1, attempts, backoff * (i + 1))
+                    time.sleep(backoff * (i + 1))
         resp.raise_for_status()
         content = resp.json()["choices"][0]["message"]["content"]
         data = _extract_json(content)
