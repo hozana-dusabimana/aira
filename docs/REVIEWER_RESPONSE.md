@@ -81,10 +81,10 @@ non-accident category fall in `normal` and are rejected. What we changed:
 _From `evaluate.py` on our trained CNN; reproducible with the commands below._
 
 We report the metric that actually matters — accuracy on images the model has
-**never seen** — rather than the in-sample validation figure. (In-sample
-validation is optimistically high, ~0.99, and on its own can hide over-fitting;
-quoting the held-out number is the honest thing to defend in front of an
-examiner.)
+**never seen**. Encouragingly, the in-sample validation accuracy (~0.88) and the
+held-out figure (~88%) agree closely, which indicates the model is **not** badly
+over-fit; quoting the held-out number is the honest thing to defend in front of
+an examiner.
 
 **Held-out test: 300 images from datasets the model never trained on** (accident:
 a separate CCTV accident set; normal: tiny-imagenet).

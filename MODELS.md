@@ -122,7 +122,7 @@ ResNet `layer4` fine-tuned. Pairing damaged cars (accident) with intact cars
 | Training images | 4,480 |
 | Validation images | 1,120 |
 | Epochs | 8 |
-| **Best validation accuracy** | **99.6%** |
+| **Best validation accuracy** | **88.1%** |
 
 ### Generalisation test on UNSEEN images (the honest numbers)
 

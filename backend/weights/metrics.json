@@ -1,11 +1,11 @@
 {
-  "best_val_accuracy": 0.99732,
+  "best_val_accuracy": 0.88125,
   "final_epoch": {
     "epoch": 8,
-    "train_loss": 0.00046,
-    "train_acc": 0.99978,
-    "val_loss": 0.02622,
-    "val_acc": 0.99643
+    "train_loss": 0.10431,
+    "train_acc": 0.96607,
+    "val_loss": 0.29894,
+    "val_acc": 0.88125
   },
   "num_classes": 2,
   "classes": [
