@@ -135,7 +135,8 @@ def test_description_is_multi_paragraph_and_scenario_specific():
     assert len(paragraphs) >= 4, "expected a multi-paragraph narrative"
     # Tailored opening: should mention the actual scenario, not just say "general scene".
     assert "general scene" not in desc.lower()
-    assert "AI analysis details" in desc
+    # The technical "AI analysis details" footer is intentionally hidden now.
+    assert "AI analysis details" not in desc
     assert "Severity assessment" in desc
     assert "Recommended immediate actions" in desc
 

@@ -601,6 +601,9 @@ def generate_description(
 
     paragraphs.append(_severity_paragraph(result.severity_level))
     paragraphs.append(_action_paragraph(result.incident_type, scenario))
-    paragraphs.append(_appendix(result))
+    # Technical "AI analysis details" footer (scene/detections/model) hidden from
+    # the officer-facing report — it added noisy detections and clutter. Restore
+    # by uncommenting.
+    # paragraphs.append(_appendix(result))
 
     return "\n\n".join(paragraphs)
