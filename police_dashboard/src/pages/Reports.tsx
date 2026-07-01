@@ -301,7 +301,7 @@ export default function Reports() {
           )}
 
           <div className="report-footer">
-            AIRA — AI Incident Reporting Assistant · Confidential · Generated for internal police use.
+            AIRA — AI Accident Reporting Assistant · Confidential · Generated for internal police use.
           </div>
         </div>
       )}

@@ -29,12 +29,12 @@ export default function Landing() {
       <section className="landing-hero">
         <div className="landing-container hero-grid">
           <div className="hero-copy">
-            <span className="eyebrow">AI Incident Reporting Application</span>
-            <h1>Smarter incident response, powered by AI.</h1>
+            <span className="eyebrow">AI Accident Reporting Application</span>
+            <h1>Smarter road-accident response, powered by AI.</h1>
             <p>
               AIRA helps Rwanda National Police receive, triage and resolve
-              citizen-reported incidents in real time — combining mobile reporting,
-              AI verification and a unified operations dashboard.
+              citizen-reported road accidents in real time — combining mobile
+              reporting, AI verification and a unified operations dashboard.
             </p>
             <div className="hero-actions">
               <a href={APK_URL} className="btn-primary btn-download" download>
@@ -64,7 +64,7 @@ export default function Landing() {
               <div className="hero-card-row">
                 <span className="dot dot-red" />
                 <div>
-                  <strong>Critical incident</strong>
+                  <strong>Critical accident</strong>
                   <small>Kicukiro · 2 min ago</small>
                 </div>
                 <span className="badge-mini critical">Critical</span>
@@ -80,7 +80,7 @@ export default function Landing() {
               <div className="hero-card-row">
                 <span className="dot dot-yellow" />
                 <div>
-                  <strong>Suspicious activity</strong>
+                  <strong>Motorcycle accident</strong>
                   <small>Gasabo · 15 min ago</small>
                 </div>
                 <span className="badge-mini medium">Medium</span>
@@ -88,7 +88,7 @@ export default function Landing() {
               <div className="hero-card-row">
                 <span className="dot dot-green" />
                 <div>
-                  <strong>Resolved · noise complaint</strong>
+                  <strong>Resolved · minor collision</strong>
                   <small>Nyarugenge · 22 min ago</small>
                 </div>
                 <span className="badge-mini resolved">Resolved</span>
@@ -109,7 +109,7 @@ export default function Landing() {
             <div className="feature-card">
               <div className="feature-icon">📱</div>
               <h3>Mobile reporting</h3>
-              <p>Citizens submit incidents with photos, GPS location and category in seconds from any Android device.</p>
+              <p>Citizens report road accidents with photos, GPS location and severity in seconds from any Android device.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">🤖</div>
@@ -119,7 +119,7 @@ export default function Landing() {
             <div className="feature-card">
               <div className="feature-icon">🗺️</div>
               <h3>Live operations map</h3>
-              <p>Dispatch officers from a unified map view with real-time incident tracking and unit location.</p>
+              <p>Dispatch officers from a unified map view with real-time accident tracking and unit location.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon">⚡</div>
@@ -150,7 +150,7 @@ export default function Landing() {
             <div className="step-card">
               <div className="step-number">01</div>
               <h3>Citizen reports</h3>
-              <p>A citizen captures evidence in the AIRA mobile app and submits a geotagged incident.</p>
+              <p>A citizen captures evidence in the AIRA mobile app and submits a geotagged road accident.</p>
             </div>
             <div className="step-card">
               <div className="step-number">02</div>
@@ -177,7 +177,7 @@ export default function Landing() {
             <span className="eyebrow">About AIRA</span>
             <h2>A safer Rwanda, together.</h2>
             <p>
-              AIRA — the AI Incident Reporting Application — is a joint initiative
+              AIRA — the AI Accident Reporting Application — is a joint initiative
               that brings citizens and the Rwanda National Police closer through
               technology. By combining a friendly mobile experience with serious
               operations tooling, AIRA reduces response times and increases trust
