@@ -66,7 +66,9 @@ class Settings(BaseSettings):
     # uploaded image to a third-party provider — keep off unless acceptable.
     OPENROUTER_ENABLED: bool = False
     OPENROUTER_API_KEY: str = ""
-    OPENROUTER_MODEL: str = "meta-llama/llama-3.2-11b-vision-instruct:free"
+    # NB: free vision models change often (the Llama one became paid). This is a
+    # currently-free vision model; override via OPENROUTER_MODEL if it changes.
+    OPENROUTER_MODEL: str = "google/gemma-4-31b-it:free"
     OPENROUTER_ACCEPT_THRESHOLD: float = 0.5
     OPENROUTER_TIMEOUT: int = 30
 
