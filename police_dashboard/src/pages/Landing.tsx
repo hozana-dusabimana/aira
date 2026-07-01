@@ -29,7 +29,7 @@ export default function Landing() {
       <section className="landing-hero">
         <div className="landing-container hero-grid">
           <div className="hero-copy">
-            <span className="eyebrow">AI Accident Reporting Application</span>
+            <span className="eyebrow">AI-Powered Accident Reporting Application</span>
             <h1>Smarter road-accident response, powered by AI.</h1>
             <p>
               AIRA helps Rwanda National Police receive, triage and resolve
@@ -177,7 +177,7 @@ export default function Landing() {
             <span className="eyebrow">About AIRA</span>
             <h2>A safer Rwanda, together.</h2>
             <p>
-              AIRA — the AI Accident Reporting Application — is a joint initiative
+              AIRA — the AI-Powered Accident Reporting Application — is a joint initiative
               that brings citizens and the Rwanda National Police closer through
               technology. By combining a friendly mobile experience with serious
               operations tooling, AIRA reduces response times and increases trust

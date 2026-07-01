@@ -104,7 +104,7 @@ export default function Layout() {
         <SystemStatus />
 
         <div className="footer">
-          AI Accident Reporting<br />v1.0.0
+          AI-Powered Accident Reporting<br />v1.0.0
         </div>
       </aside>
 

@@ -178,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 16),
                     Center(
                       child: Text(
-                        'AIRA • AI Accident Reporting Application',
+                        'AIRA • AI-Powered Accident Reporting Application',
                         style: TextStyle(
                           color: Colors.grey.shade500,
                           fontSize: 11,
