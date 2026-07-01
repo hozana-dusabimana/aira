@@ -59,42 +59,55 @@ def _apply_trained_cnn(result: "AnalysisResult", image_bytes: bytes) -> None:
     conf = 0.0
     tag = ""
 
-    # 1) CLIP zero-shot detector (robust to wide/close/stylised photos) — takes
-    #    precedence when enabled.
+    # 1) OpenRouter vision-model classifier (when enabled) — highest precedence.
     try:
-        from app.ai import clip_classifier
-        clip_prob = clip_classifier.predict_accident_prob(image_bytes)
+        from app.ai import openrouter_classifier
+        or_prob = openrouter_classifier.predict_accident_prob(image_bytes)
     except ImportError:
-        clip_prob = None
-    if clip_prob is not None:
-        thr = getattr(settings, "CLIP_ACCEPT_THRESHOLD", 0.5)
-        is_accident = clip_prob >= thr
+        or_prob = None
+
+    if or_prob is not None:
+        thr = getattr(settings, "OPENROUTER_ACCEPT_THRESHOLD", 0.5)
+        is_accident = or_prob >= thr
         chosen_type = "traffic" if is_accident else "general"
-        conf = clip_prob if is_accident else (1.0 - clip_prob)
-        tag = "clip"
+        conf = or_prob if is_accident else (1.0 - or_prob)
+        tag = "llm"
     else:
-        # 2) ResNet CNN fallback. Accident-biased: because non-accident photos
-        #    score ~0 for accident, a clear-enough accident probability is
-        #    trusted even when another class is technically top-1.
+        # 2) CLIP zero-shot detector (robust to wide/close/stylised photos).
         try:
-            from app.ai import incident_cnn
+            from app.ai import clip_classifier
+            clip_prob = clip_classifier.predict_accident_prob(image_bytes)
         except ImportError:
-            return
-        probs = incident_cnn.predict_probs(image_bytes)
-        if not probs:
-            return
-        acc_prob = probs.get("accident", 0.0)
-        accept_thr = getattr(settings, "ACCIDENT_ACCEPT_THRESHOLD", 0.25)
-        if acc_prob >= accept_thr:
-            raw_class, conf = "accident", acc_prob
+            clip_prob = None
+        if clip_prob is not None:
+            thr = getattr(settings, "CLIP_ACCEPT_THRESHOLD", 0.5)
+            is_accident = clip_prob >= thr
+            chosen_type = "traffic" if is_accident else "general"
+            conf = clip_prob if is_accident else (1.0 - clip_prob)
+            tag = "clip"
         else:
-            raw_class = max(probs, key=probs.get)
-            conf = probs[raw_class]
-            if conf < getattr(settings, "INCIDENT_CNN_MIN_CONFIDENCE", 0.45):
-                logger.debug("CNN prediction %s too low-confidence (%.2f); keeping rules.", raw_class, conf)
+            # 3) ResNet CNN fallback. Accident-biased: because non-accident
+            #    photos score ~0 for accident, a clear-enough accident
+            #    probability is trusted even when another class is top-1.
+            try:
+                from app.ai import incident_cnn
+            except ImportError:
                 return
-        chosen_type = CNN_CLASS_TO_INCIDENT_TYPE.get(raw_class, raw_class)
-        tag = "cnn"
+            probs = incident_cnn.predict_probs(image_bytes)
+            if not probs:
+                return
+            acc_prob = probs.get("accident", 0.0)
+            accept_thr = getattr(settings, "ACCIDENT_ACCEPT_THRESHOLD", 0.25)
+            if acc_prob >= accept_thr:
+                raw_class, conf = "accident", acc_prob
+            else:
+                raw_class = max(probs, key=probs.get)
+                conf = probs[raw_class]
+                if conf < getattr(settings, "INCIDENT_CNN_MIN_CONFIDENCE", 0.45):
+                    logger.debug("CNN prediction %s too low-confidence (%.2f); keeping rules.", raw_class, conf)
+                    return
+            chosen_type = CNN_CLASS_TO_INCIDENT_TYPE.get(raw_class, raw_class)
+            tag = "cnn"
 
     severity, scenario = scenario_and_severity_for_type(chosen_type, result.detected_objects)
     # The trained detector is the accident authority: when IT says this is an

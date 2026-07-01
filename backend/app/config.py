@@ -60,6 +60,16 @@ class Settings(BaseSettings):
     # Accept as an accident when the CLIP probe's P(accident) >= this.
     CLIP_ACCEPT_THRESHOLD: float = 0.5
 
+    # --- OpenRouter vision-model classifier (optional, clearly labelled) ------
+    # When enabled (and OPENROUTER_API_KEY set), a vision LLM via OpenRouter
+    # classifies accident vs not. Takes precedence over CLIP/CNN. Sends the
+    # uploaded image to a third-party provider — keep off unless acceptable.
+    OPENROUTER_ENABLED: bool = False
+    OPENROUTER_API_KEY: str = ""
+    OPENROUTER_MODEL: str = "meta-llama/llama-3.2-11b-vision-instruct:free"
+    OPENROUTER_ACCEPT_THRESHOLD: float = 0.5
+    OPENROUTER_TIMEOUT: int = 30
+
     # Reject uploads the AI does not recognise as a reportable incident
     # (e.g. a person sitting in an office) so officers aren't disturbed by
     # non-incident photos. Set false to accept every upload.
